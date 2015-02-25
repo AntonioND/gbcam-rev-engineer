@@ -57,14 +57,8 @@ void setAddress(unsigned int addr)
 
 //--------------------------------------------------------
 
-#define REPEAT256(x) x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x \
-                     x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x \
-                     x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x \
-                     x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x \
-                     x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x \
-                     x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x \
-                     x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x \
-                     x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x
+#define REPEAT64(x) x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x \
+                    x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x
 
 __attribute__((naked)) void executeClocks(void) // 256*256*17 clocks
 {
@@ -82,11 +76,11 @@ __attribute__((naked)) void executeClocks(void) // 256*256*17 clocks
       "mov r18,r16        \n"
       "andi r18,~(1<<5)   \n"
 
-      "ldi r20,0x17           \n"
+      "ldi r20,0x17*4           \n"
         "L_1_%=:              \n"
         "ldi r19,0x00         \n"
           "L_2_%=:            \n"
-          REPEAT256("out 0x05,r17\nnop\nout 0x05,r18\nnop\n")
+          REPEAT64("out 0x05,r17\nnop\nnop\nnop\nnop\nnop\nnop\nnop\nout 0x05,r18\nnop\nnop\nnop\nnop\nnop\nnop\nnop\n")
           "dec r19            \n"
           "breq L_2_exit_%=   \n"
           "rjmp L_2_%=        \n"

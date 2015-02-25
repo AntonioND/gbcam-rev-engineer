@@ -104,7 +104,13 @@ void WindowRender(void)
 {
     SDL_UpdateTexture(mTexture, NULL, (void*)SCREEN_BUFFER, SCREEN_W*3);
     SDL_RenderClear(mRenderer);
-    SDL_RenderCopy(mRenderer, mTexture, NULL, NULL);
+
+    SDL_Rect src;
+    src.x = 0; src.y = 0; src.w = 128; src.h = 112;
+    SDL_Rect dst;
+    dst.x = 0; dst.y = 0; dst.w = 128*2; dst.h = 112*2;
+
+    SDL_RenderCopy(mRenderer, mTexture, &src, &dst);
     SDL_RenderPresent(mRenderer);
 }
 
@@ -298,8 +304,6 @@ void readPicture(void)
 {
     SDL_SetWindowTitle(mWindow,"Reading picture...");
 
-    memset(picturedata,0xFF,sizeof(picturedata));
-
     if(SerialWriteData("P.",2)==0)
     {
         Debug_Log("SerialWriteData <P.> error.");
@@ -352,8 +356,6 @@ void readPicture(void)
 void readThumbnail(void) // 2 rows of tiles
 {
     SDL_SetWindowTitle(mWindow,"Reading thumbnail...");
-
-    memset(picturedata,0xFF,sizeof(picturedata));
 
     if(SerialWriteData("T.",2)==0)
     {
@@ -431,7 +433,7 @@ unsigned int waitPictureReady(void)
 //-------------------------------------------------------------------------------------
 
 void TakePictureAndTransfer(u8 trigger, u8 unk1, u16 exposure_time, u8 unk2, u8 unk3,
-                            int dithering_enabled, int thumbnail)
+                            int dithering, int thumbnail)
 {
     SDL_SetWindowTitle(mWindow,"Taking picture...");
 
@@ -450,14 +452,16 @@ void TakePictureAndTransfer(u8 trigger, u8 unk1, u16 exposure_time, u8 unk2, u8 
 
     writeByte(0xA005,unk3);
 
-    //const unsigned char matrix[] = { // high light
+    //const unsigned char matrix[] = // high light
+    //{
     //    0x89, 0x92, 0xA2, 0x8F, 0x9E, 0xC6, 0x8A, 0x95, 0xAB, 0x91, 0xA1, 0xCF,
     //    0x8D, 0x9A, 0xBA, 0x8B, 0x96, 0xAE, 0x8F, 0x9D, 0xC3, 0x8C, 0x99, 0xB7,
     //    0x8A, 0x94, 0xA8, 0x90, 0xA0, 0xCC, 0x89, 0x93, 0xA5, 0x90, 0x9F, 0xC9,
     //    0x8E, 0x9C, 0xC0, 0x8C, 0x98, 0xB4, 0x8E, 0x9B, 0xBD, 0x8B, 0x97, 0xB1
     //};
 
-    const unsigned char matrix[48] = { // low light
+    const unsigned char matrix[48] = // low light
+    {
         0x8C, 0x98, 0xAC, 0x95, 0xA7, 0xDB, 0x8E, 0x9B, 0xB7, 0x97, 0xAA, 0xE7,
         0x92, 0xA2, 0xCB, 0x8F, 0x9D, 0xBB, 0x94, 0xA5, 0xD7, 0x91, 0xA0, 0xC7,
         0x8D, 0x9A, 0xB3, 0x96, 0xA9, 0xE3, 0x8C, 0x99, 0xAF, 0x95, 0xA8, 0xDF,
@@ -467,7 +471,7 @@ void TakePictureAndTransfer(u8 trigger, u8 unk1, u16 exposure_time, u8 unk2, u8 
     int i;
     for(i = 0; i < 48; i++)
     {
-        if(dithering_enabled)
+        if(dithering)
         {
             writeByte(0xA006+i,matrix[i]);
         }
@@ -498,8 +502,6 @@ void TakePictureAndTransfer(u8 trigger, u8 unk1, u16 exposure_time, u8 unk2, u8 
     }
 
     SDL_SetWindowTitle(mWindow,"Reading picture...");
-
-    memset(picturedata,0xFF,sizeof(picturedata));
 
     int size = 16 * (thumbnail ? 2 : 14) * 16;
     for(i = 0; i < size; i++)
@@ -564,14 +566,16 @@ void TakePicture(u8 trigger, u8 unk1, u16 exposure_time, u8 unk2, u8 unk3,
 
     writeByte(0xA005,unk3);
 
-    //const unsigned char matrix[] = { // high light
+    //const unsigned char matrix[] = // high light
+    //{
     //    0x89, 0x92, 0xA2, 0x8F, 0x9E, 0xC6, 0x8A, 0x95, 0xAB, 0x91, 0xA1, 0xCF,
     //    0x8D, 0x9A, 0xBA, 0x8B, 0x96, 0xAE, 0x8F, 0x9D, 0xC3, 0x8C, 0x99, 0xB7,
     //    0x8A, 0x94, 0xA8, 0x90, 0xA0, 0xCC, 0x89, 0x93, 0xA5, 0x90, 0x9F, 0xC9,
     //    0x8E, 0x9C, 0xC0, 0x8C, 0x98, 0xB4, 0x8E, 0x9B, 0xBD, 0x8B, 0x97, 0xB1
     //};
 
-    const unsigned char matrix[48] = { // low light
+    const unsigned char matrix[48] = // low light
+    {
         0x8C, 0x98, 0xAC, 0x95, 0xA7, 0xDB, 0x8E, 0x9B, 0xB7, 0x97, 0xAA, 0xE7,
         0x92, 0xA2, 0xCB, 0x8F, 0x9D, 0xBB, 0x94, 0xA5, 0xD7, 0x91, 0xA0, 0xC7,
         0x8D, 0x9A, 0xB3, 0x96, 0xA9, 0xE3, 0x8C, 0x99, 0xAF, 0x95, 0xA8, 0xDF,
@@ -645,6 +649,8 @@ int main(int argc, char * argv[])
 
     SDL_SetWindowTitle(mWindow,"Init...");
 
+    ClearPicture();
+
     SerialCreate("COM4");
 
     if(SerialIsConnected())
@@ -653,8 +659,8 @@ int main(int argc, char * argv[])
         return 2;
 
     SDL_SetWindowTitle(mWindow,"Inited!");
-/*
 
+/*
 int bank = 2;
 writeByte(0x2000,bank);
 //Dump
@@ -731,7 +737,7 @@ return 123;
         SDL_Delay(2000);
     }
 
-    v1 = 0xE6; // 0x00, 0x0A, 0x20, 0x24, 0x28, 0xE4, 0xE8
+    v1 = 0xE8; // 0x00, 0x0A, 0x20, 0x24, 0x28, 0xE4, 0xE8
     v2 = 0x24;
     /* 0x05,
        0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x03, 0x04, 0x05, 0x06, 0x07,
@@ -749,7 +755,7 @@ return 123;
             0xBF, 0xA0, 0xB0, 0xB8, 0xBC, 0xBE, 0xBF, 0xBF, 0xBF, 0xA0, 0xB0, 0xB8, 0xBC, 0xBE,
             0xBF, 0xBF, 0x80, 0xBF, 0xA0, 0xB0, 0xB8, 0xBC, 0xBE, 0xBF, 0xBF, 0x3F, 0xBF
     */
-    exptime = 0x5B;
+    exptime = 0x15;
 
     float waitforticks = 0;
     int exit = 0;
@@ -772,7 +778,7 @@ return 123;
         if(takepicture)
         {
             takepicture = 0;
-            ClearPicture();
+            //ClearPicture();
             TakePictureAndTransfer(0x03,v1,exposuretimeval,v2,v3,dither_on,0);
         }
         else if(takethumbnail)
@@ -784,7 +790,7 @@ return 123;
         if(readpicture)
         {
             readpicture = 0;
-            ClearPicture();
+            //ClearPicture();
             TransferPicture();
         }
 
