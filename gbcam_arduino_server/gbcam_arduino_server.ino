@@ -132,7 +132,7 @@ void setup()
 
   //---------------------------
     
-  Serial.begin(19200);//9600);
+  Serial.begin(115200);//19200);//9600);
 }
 
 //--------------------------------------------------------
@@ -387,6 +387,24 @@ void loop()
       case 'X': //set ram mode (bank 0)
       {
         writeCartByte(0x4000,0);
+        break;
+      }
+      
+      case 'C': // Execute slow clocks
+      {
+        writeCartByte(0x4000,0x10); // Set register mode
+        setAddress(0xA000);
+        setReadMode(0xA000 < 0x8000);
+        while(1)
+        {
+          if( getDataBit0() == 0 ) break;
+          digitalWrite(phi_pin, LOW); //clock
+          delay(10);
+          digitalWrite(phi_pin, HIGH);
+          delay(10);
+        }
+        digitalWrite(phi_pin, LOW);
+        setWaitMode();
         break;
       }
       

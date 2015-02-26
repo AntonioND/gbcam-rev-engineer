@@ -1,0 +1,90 @@
+
+freq(XCK) = freq(PHI)/2
+
+1 = [A001]
+2 = [A002]
+3 = [A003]
+4 = CNST
+5 = CNST
+6 = CNST
+7 = [A004]
+0 = [A005]
+
+Constants:
+
+[A000] [4] [5] [6]
+1(001)  0   1   1
+3(011)  1   0   1
+5(101)  1   2   1
+7(111)  1   2   1
+
+-----------------------------------------------------------------
+
+TIMINGS A001.7 = 1
+-------
+
+RESET
+LOAD REG 11 ([1] = E8)
+LOAD REG 11 ([2] = 0)
+LOAD REG 11 ([3] = 40)
+LOAD REG 11 ([4] = 1)
+LOAD REG 11 ([5] = 0)
+LOAD REG 11 ([6] = 1)
+LOAD REG 11 ([7] = 24)
+LOAD REG 11 ([0] = BF)
+START 2
+READ START 514
+READ END 14785
+RESET 3
+
+TIMINGS A001.7 = 0
+-------
+
+RESET 628
+RESET 4
+LOAD REG 11 ([1] = 74)
+LOAD REG 11 ([2] = 0)
+LOAD REG 11 ([3] = 40)
+LOAD REG 11 ([4] = 1)
+LOAD REG 11 ([5] = 0)
+LOAD REG 11 ([6] = 1)
+LOAD REG 11 ([7] = 24)
+LOAD REG 11 ([0] = BF)
+START 2
+READ START 514
+READ END 16384
+RESET 3
+
+-----------------------------------------------------------------
+
+EXPOSURE = 0080
+---------------
+
+RESET 17
+LOAD REG 11 ([1] = E8)
+LOAD REG 11 ([2] = 0)
+LOAD REG 11 ([3] = 80)
+LOAD REG 11 ([4] = 1)
+LOAD REG 11 ([5] = 0)
+LOAD REG 11 ([6] = 1)
+LOAD REG 11 ([7] = 24)
+LOAD REG 11 ([0] = BF)
+START 2
+READ START 1026
+
+EXPOSURE = 0000
+---------------
+
+RESET 9
+LOAD REG 11 ([1] = E8)
+LOAD REG 11 ([2] = 0)
+LOAD REG 11 ([3] = 0)
+LOAD REG 11 ([4] = 1)
+LOAD REG 11 ([5] = 0)
+LOAD REG 11 ([6] = 1)
+LOAD REG 11 ([7] = 24)
+LOAD REG 11 ([0] = BF)
+START 2
+READ START 2
+
+-----------------------------------------------------------------

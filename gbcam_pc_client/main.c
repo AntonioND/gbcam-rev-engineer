@@ -116,11 +116,13 @@ void WindowRender(void)
 
 //-------------------------------------------------------------------------------------
 
+u8 trig_value = 0;
 u8 v1 = 0,v2 = 0,v3 = 0;
-u16 exptime = 0x05;
+u16 exptime = 0x0500;
 int takepicture = 0, takethumbnail = 0;
 int readpicture = 0;
 int dither_on = 1;
+int debugpicture = 0;
 
 static int HandleEvents(void)
 {
@@ -138,6 +140,13 @@ static int HandleEvents(void)
             {
                 case SDLK_ESCAPE:
                     return 1;
+
+                case SDLK_t:
+                    trig_value ++;
+                    break;
+                case SDLK_g:
+                    trig_value --;
+                    break;
 
                 case SDLK_q:
                     v1 ++;
@@ -165,10 +174,10 @@ static int HandleEvents(void)
                     break;
 
                 case SDLK_UP:
-                    exptime ++;
+                    exptime +=0x40;
                     break;
                 case SDLK_DOWN:
-                    exptime --;
+                    exptime -=0x40;
                     break;
 
                 case SDLK_RETURN:
@@ -179,6 +188,9 @@ static int HandleEvents(void)
                     break;
                 case SDLK_SPACE:
                     readpicture = 1;
+                    break;
+                case SDLK_p:
+                    debugpicture = 1;
                     break;
             }
         }
@@ -610,6 +622,35 @@ void TakePicture(u8 trigger, u8 unk1, u16 exposure_time, u8 unk2, u8 unk3,
     ramDisable();
 }
 
+void TakePictureDebug(u8 trigger, u8 unk1, u16 exposure_time, u8 unk2, u8 unk3)
+{
+    SDL_SetWindowTitle(mWindow,"Taking picture...");
+
+    ramEnable();
+    setRegisterMode();
+
+    writeByte(0xA000,0x00);
+
+    writeByte(0xA001,unk1);
+
+    writeByte(0xA002,(exposure_time>>8)&0xFF);
+    writeByte(0xA003,exposure_time&0xFF);
+
+    writeByte(0xA004,unk2);
+
+    writeByte(0xA005,unk3);
+
+    writeByte(0xA000,trigger);
+
+    if(SerialWriteData("C.",2) == 0)
+    {
+        Debug_Log("SerialWriteData() error in TakePictureDebug()");
+        return;
+    }
+
+    ramDisable();
+}
+
 void TransferPicture(void)
 {
     ramEnable();
@@ -737,6 +778,8 @@ return 123;
         SDL_Delay(2000);
     }
 
+    trig_value = 0x03;
+
     v1 = 0xE8; // 0x00, 0x0A, 0x20, 0x24, 0x28, 0xE4, 0xE8
     v2 = 0x24;
     /* 0x05,
@@ -755,7 +798,7 @@ return 123;
             0xBF, 0xA0, 0xB0, 0xB8, 0xBC, 0xBE, 0xBF, 0xBF, 0xBF, 0xA0, 0xB0, 0xB8, 0xBC, 0xBE,
             0xBF, 0xBF, 0x80, 0xBF, 0xA0, 0xB0, 0xB8, 0xBC, 0xBE, 0xBF, 0xBF, 0x3F, 0xBF
     */
-    exptime = 0x15;
+    exptime = 0x1500;
 
     float waitforticks = 0;
     int exit = 0;
@@ -768,30 +811,32 @@ return 123;
 
         //TakePictureAndTransfer(0x03,0xE4,0,0x07,0xBF,1,0); //Base
 
-        u16 exposuretimeval = exptime << 8;
-
         char str[100];
-        sprintf(str,"0x%02X 0x%02X 0x%02X 0x%04X - Dither %d",
-                    v1,v2,v3,exposuretimeval,dither_on);
+        sprintf(str,"0x%02X - 0x%02X 0x%02X 0x%02X 0x%04X - Dither %d",
+                    trig_value, v1,v2,v3,exptime&0xFFFF,dither_on);
         SDL_SetWindowTitle(mWindow,str);
 
         if(takepicture)
         {
             takepicture = 0;
             //ClearPicture();
-            TakePictureAndTransfer(0x03,v1,exposuretimeval,v2,v3,dither_on,0);
+            TakePictureAndTransfer(trig_value,v1,exptime&0xFFFF,v2,v3,dither_on,0);
         }
         else if(takethumbnail)
         {
             takethumbnail = 0;
             ClearPicture();
-            TakePictureAndTransfer(0x03,v1,exposuretimeval,v2,v3,dither_on,1);
         }
         if(readpicture)
         {
             readpicture = 0;
             //ClearPicture();
             TransferPicture();
+        }
+        if(debugpicture)
+        {
+            debugpicture = 0;
+            TakePictureDebug(trig_value,v1,exptime&0xFFFF,v2,v3);
         }
 
         //-------------------

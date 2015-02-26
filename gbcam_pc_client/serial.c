@@ -63,7 +63,7 @@ void SerialCreate(char * portName)
         else
         {
             //Define serial connection parameters for the Arduino board
-            dcbSerialParams.BaudRate=CBR_19200;//CBR_9600;
+            dcbSerialParams.BaudRate=CBR_115200;//CBR_19200;//CBR_9600;
             dcbSerialParams.ByteSize=8;
             dcbSerialParams.StopBits=ONESTOPBIT;
             dcbSerialParams.Parity=NOPARITY;
