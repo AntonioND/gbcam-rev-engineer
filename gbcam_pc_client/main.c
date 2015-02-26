@@ -825,7 +825,8 @@ return 123;
         else if(takethumbnail)
         {
             takethumbnail = 0;
-            ClearPicture();
+            //ClearPicture();
+            TransferThumbnail();
         }
         if(readpicture)
         {
