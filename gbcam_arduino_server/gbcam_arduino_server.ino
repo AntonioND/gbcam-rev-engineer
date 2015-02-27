@@ -399,9 +399,9 @@ void loop()
         {
           if( getDataBit0() == 0 ) break;
           digitalWrite(phi_pin, LOW); //clock
-          delay(10);
+          delay(5);
           digitalWrite(phi_pin, HIGH);
-          delay(10);
+          delay(5);
         }
         digitalWrite(phi_pin, LOW);
         setWaitMode();
