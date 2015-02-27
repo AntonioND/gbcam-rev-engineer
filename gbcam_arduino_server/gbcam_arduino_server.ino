@@ -41,8 +41,9 @@ int command_string_ptr;
 
 void setAddress(unsigned int addr)
 {
-  digitalWrite(addr_clk_pin,LOW);
-
+  //digitalWrite(addr_clk_pin,LOW);
+  PORTB &= ~BIT(0);
+  
   int i;
   for(i = 0; i < 16; i++)
   {
@@ -131,7 +132,7 @@ void setup()
   //digitalWrite(nres_pin, HIGH);
 
   //---------------------------
-    
+
   Serial.begin(115200);//19200);//9600);
 }
 
@@ -228,13 +229,16 @@ void writeCartByte(unsigned int address, unsigned int value)
   setData(value);
   
   performWrite();
-  
-  digitalWrite(phi_pin, LOW);
-  //delayMicroseconds(1);
+  /*
+  PORTB &= ~BIT(5);
+  asm volatile("nop\nnop\nnop\nnop\nnop\nnop\nnop\nnop");
+  PORTB |= BIT(5);
+  asm volatile("nop\nnop\nnop\nnop\nnop\nnop\nnop\nnop");
+  PORTB &= ~BIT(5);
+  */
+  //digitalWrite(phi_pin, LOW);
   digitalWrite(phi_pin, HIGH);
-  //delayMicroseconds(1);
-  digitalWrite(phi_pin, LOW);
-  //delayMicroseconds(1);
+  //digitalWrite(phi_pin, LOW);
   
   setWaitMode();
 }

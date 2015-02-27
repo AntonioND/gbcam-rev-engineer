@@ -25,10 +25,31 @@ Uint32 mWindowID;
 
 //-------------------------------------------------------------------------------------
 
-#define SCREEN_W (512)
-#define SCREEN_H (256)
+//Camera settings
+u8 trig_value = 0;
+u8 reg1 = 0,reg4 = 0,reg5 = 0;
+u16 exptime = 0x0500;
 
-static char SCREEN_BUFFER[SCREEN_W*SCREEN_H*3];
+//-------------------------------------------------------------------------------------
+
+//Keyboard events
+int takepicture = 0, takethumbnail = 0;
+int readpicture = 0;
+int dither_on = 1;
+int debugpicture = 0;
+
+//-------------------------------------------------------------------------------------
+
+#define GBCAM_W (128)
+#define GBCAM_H (112)
+
+#define SCREEN_W (GBCAM_W*3 * 2)
+#define SCREEN_H (GBCAM_H*3)
+
+#define BIT(n) (1<<(n))
+
+static unsigned char SCREEN_BUFFER[SCREEN_W*SCREEN_H*3];
+static unsigned char GBCAM_BUFFER[GBCAM_W*GBCAM_H*3];
 
 int WindowCreate(void)
 {
@@ -100,29 +121,71 @@ void WindowClose(void)
     SDL_DestroyWindow(mWindow);
 }
 
+void WindowDrawQuadButton(int ix, int iy, unsigned char on)
+{
+    on = (on != 0) ? 0 : 2;
+
+    int xbase = GBCAM_W*3 + ix*32;
+    int ybase = iy*32;
+
+    struct {
+        unsigned char r, g, b;
+    } reg_color[4][8] = {
+        { {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{255,255,255},{255,255,255},{192,192,192} },
+        { {255,0,0},{0,255,255},{0,255,255},{0,255,0},{0,255,0},{0,255,0},{0,255,0},{0,255,0} },
+        { {0,0,255},{0,0,255},{0,0,255},{0,0,255},{255,255,255},{255,255,0},{255,255,0},{255,255,0} },
+        { {0,255,0},{0,255,0},{255,255,0},{255,255,0},{255,255,0},{255,255,0},{255,255,0},{255,255,0} }
+    };
+
+    unsigned char r = reg_color[iy][ix].r >> on;
+    unsigned char g = reg_color[iy][ix].g >> on;
+    unsigned char b = reg_color[iy][ix].b >> on;
+
+    int i,j;
+    for(j = 0; j < 32; j++) for(i = 0; i < 32; i++)
+    {
+        int x = xbase + i;
+        int y = ybase + j;
+        int offset = ( x + y*SCREEN_W ) * 3;
+        unsigned char * p = &(SCREEN_BUFFER[offset]);
+        *p++ = r;
+        *p++ = g;
+        *p = b;
+    }
+}
+
 void WindowRender(void)
 {
+    int i;
+    for(i = 0; i < 8; i ++)
+    {
+        WindowDrawQuadButton(i,0,trig_value&BIT(7-i));
+        WindowDrawQuadButton(i,1,reg1&BIT(7-i));
+        WindowDrawQuadButton(i,2,reg4&BIT(7-i));
+        WindowDrawQuadButton(i,3,reg5&BIT(7-i));
+    }
+
+    int j;
+    for(j = 0; j < GBCAM_H*3; j++) for(i = 0; i < GBCAM_W*3; i++)
+    {
+        SCREEN_BUFFER[(i+j*SCREEN_W)*3 + 0] = GBCAM_BUFFER[( (i/3)+(j/3)*GBCAM_W)*3 + 0];
+        SCREEN_BUFFER[(i+j*SCREEN_W)*3 + 1] = GBCAM_BUFFER[( (i/3)+(j/3)*GBCAM_W)*3 + 1];
+        SCREEN_BUFFER[(i+j*SCREEN_W)*3 + 2] = GBCAM_BUFFER[( (i/3)+(j/3)*GBCAM_W)*3 + 2];
+    }
+
     SDL_UpdateTexture(mTexture, NULL, (void*)SCREEN_BUFFER, SCREEN_W*3);
     SDL_RenderClear(mRenderer);
 
     SDL_Rect src;
-    src.x = 0; src.y = 0; src.w = 128; src.h = 112;
+    src.x = 0; src.y = 0; src.w = SCREEN_W; src.h = SCREEN_H;
     SDL_Rect dst;
-    dst.x = 0; dst.y = 0; dst.w = 128*2; dst.h = 112*2;
+    dst.x = 0; dst.y = 0; dst.w = SCREEN_W; dst.h = SCREEN_H;
 
     SDL_RenderCopy(mRenderer, mTexture, &src, &dst);
     SDL_RenderPresent(mRenderer);
 }
 
 //-------------------------------------------------------------------------------------
-
-u8 trig_value = 0;
-u8 v1 = 0,v2 = 0,v3 = 0;
-u16 exptime = 0x0500;
-int takepicture = 0, takethumbnail = 0;
-int readpicture = 0;
-int dither_on = 1;
-int debugpicture = 0;
 
 static int HandleEvents(void)
 {
@@ -141,6 +204,13 @@ static int HandleEvents(void)
                 case SDLK_ESCAPE:
                     return 1;
 
+                case SDLK_r:
+                    reg1 = 0xE8;
+                    reg4 = 0x24;
+                    reg5 = 0xBF;
+                    exptime = 0x1500;
+                    break;
+
                 case SDLK_t:
                     trig_value ++;
                     break;
@@ -149,24 +219,24 @@ static int HandleEvents(void)
                     break;
 
                 case SDLK_q:
-                    v1 ++;
+                    reg1 ++;
                     break;
                 case SDLK_a:
-                    v1 --;
+                    reg1 --;
                     break;
 
                 case SDLK_w:
-                    v2 ++;
+                    reg4 ++;
                     break;
                 case SDLK_s:
-                    v2 --;
+                    reg4 --;
                     break;
 
                 case SDLK_e:
-                    v3 ++;
+                    reg5 ++;
                     break;
                 case SDLK_d:
-                    v3 --;
+                    reg5 --;
                     break;
 
                 case SDLK_z:
@@ -192,6 +262,21 @@ static int HandleEvents(void)
                 case SDLK_p:
                     debugpicture = 1;
                     break;
+            }
+        }
+        else if(e.type == SDL_MOUSEBUTTONDOWN)
+        {
+            if(e.button.button == 1)
+            {
+                int ix = (e.button.x - GBCAM_W*3) / 32;
+                int iy = e.button.y / 32;
+                if( (ix < 8) && (iy < 4) )
+                {
+                    if(iy == 0) trig_value ^= BIT(7-ix);
+                    else if(iy == 1) reg1 ^= BIT(7-ix);
+                    else if(iy == 2) reg4 ^= BIT(7-ix);
+                    else if(iy == 3) reg5 ^= BIT(7-ix);
+                }
             }
         }
     }
@@ -225,7 +310,7 @@ unsigned char picturedata[16*14*16];
 void ConvertTilesToBitmap(void)
 {
     //Convert to bitmap
-    memset(SCREEN_BUFFER,0,sizeof(SCREEN_BUFFER));
+    memset(GBCAM_BUFFER,0,sizeof(GBCAM_BUFFER));
 
     const int gb_pal_colors[4] = { 255, 168, 80, 0 };
 
@@ -242,10 +327,10 @@ void ConvertTilesToBitmap(void)
 
         int color = ( (data >> x_) & 1 ) |  ( ( (data2 >> x_)  << 1) & 2);
 
-        int bufindex = (y*SCREEN_W+x)*3;
-        SCREEN_BUFFER[bufindex+0] = gb_pal_colors[color];
-        SCREEN_BUFFER[bufindex+1] = gb_pal_colors[color];
-        SCREEN_BUFFER[bufindex+2] = gb_pal_colors[color];
+        int bufindex = (y*GBCAM_W+x)*3;
+        GBCAM_BUFFER[bufindex+0] = gb_pal_colors[color];
+        GBCAM_BUFFER[bufindex+1] = gb_pal_colors[color];
+        GBCAM_BUFFER[bufindex+2] = gb_pal_colors[color];
     }
 }
 
@@ -485,6 +570,7 @@ void TakePictureAndTransfer(u8 trigger, u8 unk1, u16 exposure_time, u8 unk2, u8 
     {
         if(dithering)
         {
+            //writeByte(0xA006+i,matrix[i/3 + (2-i%3)]);
             writeByte(0xA006+i,matrix[i]);
         }
         else
@@ -702,12 +788,12 @@ int main(int argc, char * argv[])
     SDL_SetWindowTitle(mWindow,"Inited!");
 
 /*
-int bank = 2;
+int bank = 1;
 writeByte(0x2000,bank);
 //Dump
 FILE * f = fopen("out.bin","wb");
 
-void * g = malloc(0x4000*bank); fwrite(g,0x4000*bank,1,f); free(g);
+//void * g = malloc(0x4000*bank); fwrite(g,0x4000*bank,1,f); free(g);
 
 int i;
 for(i = 0x4000; i < 0x8000; i++)
@@ -750,16 +836,16 @@ return 123;
         ramEnable();
         setRamModeBank0();
         int i;
-        for(i = 0; i < 16*14*16; i++)
+        for(i = 0; i < 128; i++)
         {
             writeByte(0xA100+i,0xFF-i);
 
             if((i&63) == 0) {
-            char str[10]; sprintf(str,"%d",(i*100)/(16*14*16));
+            char str[10]; sprintf(str,"%d",(i*100)/(128));
             SDL_SetWindowTitle(mWindow,str);
             }
         }
-        for(i = 0; i < 16*14*16; i++)
+        for(i = 0; i < 128; i++)
         {
             if(readByte(0xA100+i) != ((0xFF-i)&0xFF))
             {
@@ -768,7 +854,7 @@ return 123;
             }
 
             if((i&63) == 0) {
-            char str[10]; sprintf(str,"%d",(i*100)/(16*14*16));
+            char str[10]; sprintf(str,"%d",(i*100)/(128));
             SDL_SetWindowTitle(mWindow,str);
             }
         }
@@ -780,15 +866,15 @@ return 123;
 
     trig_value = 0x03;
 
-    v1 = 0xE8; // 0x00, 0x0A, 0x20, 0x24, 0x28, 0xE4, 0xE8
-    v2 = 0x24;
+    reg1 = 0xE8; // 0x00, 0x0A, 0x20, 0x24, 0x28, 0xE4, 0xE8
+    reg4 = 0x24;
     /* 0x05,
        0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x03, 0x04, 0x05, 0x06, 0x07,
        0x23, 0x24, 0x25, 0x26, 0x27, 0x23, 0x24, 0x25, 0x26, 0x27,
        0x23, 0x24, 0x25, 0x26, 0x27, 0x03, 0x04, 0x05, 0x06, 0x07,
        0x05, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x07
     */
-    v3 = 0xBF;
+    reg5 = 0xBF;
     /*
             0xBF,
             0x80, 0xBF, 0xA0, 0xB0, 0xB8, 0xBC, 0xBE,
@@ -813,14 +899,14 @@ return 123;
 
         char str[100];
         sprintf(str,"0x%02X - 0x%02X 0x%02X 0x%02X 0x%04X - Dither %d",
-                    trig_value, v1,v2,v3,exptime&0xFFFF,dither_on);
+                    trig_value, reg1,reg4,reg5,exptime&0xFFFF,dither_on);
         SDL_SetWindowTitle(mWindow,str);
 
         if(takepicture)
         {
             takepicture = 0;
             //ClearPicture();
-            TakePictureAndTransfer(trig_value,v1,exptime&0xFFFF,v2,v3,dither_on,0);
+            TakePictureAndTransfer(trig_value,reg1,exptime&0xFFFF,reg4,reg5,dither_on,0);
         }
         else if(takethumbnail)
         {
@@ -837,7 +923,7 @@ return 123;
         if(debugpicture)
         {
             debugpicture = 0;
-            TakePictureDebug(trig_value,v1,exptime&0xFFFF,v2,v3);
+            TakePictureDebug(trig_value,reg1,exptime&0xFFFF,reg4,reg5);
         }
 
         //-------------------

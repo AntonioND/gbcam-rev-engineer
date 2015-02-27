@@ -1,3 +1,12 @@
+                ================================================
+                =                                              =
+                =  GAME BOY CAMERA TECHNICAL INFORMATION v0.X  =
+                =                                              =
+                =  03/2015   by Antonio Niño Díaz (AntonioND)  =
+                =                                              =
+                ================================================
+
+Note: This txt file is 80 columns wide!
 
 Introduction
 ============
@@ -14,31 +23,66 @@ The main board contains all ICs except from the sensor. From gbdev wiki:
                  9807 SA
 
                  GBD-PCAX-0 F
-    U2           M538011-E -08        1M X 8 ROM
+    U2           M538011-E -08        1MB ROM
                  8145507
 
                  52CV1000SF85LL
-    U3           SHARP JAPAN          128K X 8 RAM
+    U3           SHARP JAPAN          128KB RAM
                  9805 5 0A
 
-The U1 is the only one connected to the GB cartridge pins. The U2 and U3 (ROM
-and RAM) are connected to U1. The M64282FP "retina" chip is in a sepparate PCB,
-and is connected to the U1.
+The U1 is the only one connected to the GB cartridge pins (besides some of the
+address pins of the ROM IC). The U2 and U3 (ROM and RAM) are connected to U1.
+The M64282FP "retina" chip is in a sepparate PCB, and is connected to the U1.
 
 The M64282FP handles most of the configuration of the capturing process. The U1
 transforms the commands from the Game Boy CPU into the correct signals needed
 for the M64282FP. The detailed timings are described below.
 
+Game Boy Camera MBC
+===================
+
+The Game Boy Camera controller works pretty much the same as a MBC3 game.
+
+0000-3FFF - ROM Bank 00 (Read Only)
+First 16 KB of the ROM.
+
+4000-7FFF - ROM Bank 01-7F (Read Only)
+This area may contain any ROM bank (0 included?) ***********************
+
+A000-BFFF - RAM Bank 00-0F (Read/Write)
+A000-BFFF - CAM Registers (Read/Write)
+Depending on the current RAM Bank Number, this memory space is used to access
+the cartridge RAM or the CAM registers.
+
+0000-1FFF - RAM Enable (Write Only)
+A value of 0Ah will enable writing to RAM, 00h will disable it. Reading from RAM
+or registers is always enabled. Writing to registers is always enabled.
+
+2000-3FFF - ROM Bank Number (Write Only)
+Writing a value of 01-3Fh select the corresponding ROM Bank for area 4000-7FFF.
+
+4000-5FFF - RAM Bank Number/CAM Registers Select (Write Only)
+Writing a value in range for 00h-0Fh maps the corresponding external RAM Bank to
+memory at A000-BFFF. Writing any value with bit 5 set to '1' will select CAM
+registers. Usually bank 10h is used to select the registers.
+
+***************************************************************************
+
+01234567890123456789012345678901234567890123456789012345678901234567890123456789
+
+
+
+IMPORTANT NOTE: Unlike most games, the GB Camera RAM can only be written when
+PHI pin = '1'. It's an enable signal for the RAM chip. Most cartridge readers
+and writers can't handle PHI pin so they can't restore a saved backup.
+
+
 Game Boy Camera registers
 =========================
 
+The Game Boy Camera I/O registers are mapped to all banks with bit 4 set to '1'.
+The GB Camera ROM usually changes to bank 16 to use the registers.
 
-
-*****************************************RAM HAS TO BE ENABLED?
-
-
-
-The Game Boy Camera I/O registers are mapped to "bank 16" of the cartridge RAM.
 There are 3 groups of registers:
 
 - The first group is composed by the trigger register A000. This register starts
@@ -49,11 +93,13 @@ There are 3 groups of registers:
   element of the matrix is formed by 3 bytes. This matrix is used for contrast
   and dithering.
 
+All registers are write-only, except the register A000. The other ones return
+0x00 when read.
 
 Register A000
 -------------
 
-R(How many bits?)/W
+The lower 3 bits of this register are read/writeable. The other ones return '0'.
 
 Writing any value with bit 0 set to '1' will start the capturing process. Any
 write with bit 0 set to '0' is ignored.
@@ -71,6 +117,9 @@ the M64282FP:
 Bit 0 of this register is also used to verify if the capturing process is
 finished. It returns '1' when the hardware is working and '0' if the capturing
 process is over.
+
+When the capture process is active all RAM banks will return 0x00 when read, but
+the register A000 can still be read to know when the transfer is finished.
 
 Register A001
 -------------
@@ -197,6 +246,17 @@ CLKs = 16223 + ( N_bit ? 0 : 256 ) + 8 * exposure
 
 Obviously, that's the previous result divided by 2.
 
+During the read process every pixel is written when it is read from the sensor.
+If the read process is stopped (by shutting the GB down, for example) the RAM
+will have the contents of the current picture until the read was stopped, from
+there it will have the data from the previous captured image.
+
+
+
+
+
+
+
 
 
 
@@ -205,81 +265,3 @@ Obviously, that's the previous result divided by 2.
 
 
 
-
-
-
----
--3-
----
-
-RESET
-LOAD REG 11 ([1] = 6F)
-LOAD REG 11 ([2] = 0)
-LOAD REG 11 ([3] = 40)
-LOAD REG 11 ([4] = 1)
-LOAD REG 11 ([5] = 0)
-LOAD REG 11 ([6] = 1)
-LOAD REG 11 ([7] = 24)
-LOAD REG 11 ([0] = BF)
-START 2
-READ START 514
-READ END 16384
-RESET 3
-
----
--4-
----
-
-RESET
-LOAD REG 11 ([1] = 8F)
-LOAD REG 11 ([2] = 0)
-LOAD REG 11 ([3] = 40)
-LOAD REG 11 ([4] = 1)
-LOAD REG 11 ([5] = 0)
-LOAD REG 11 ([6] = 1)
-LOAD REG 11 ([7] = 24)
-LOAD REG 11 ([0] = BF)
-START 2
-READ START 514
-READ END 16128
-RESET 3
-
-
-
-
-
-
-
------------------------------------------------------------------
-
-EXPOSURE = 0080
----------------
-
-RESET 17
-LOAD REG 11 ([1] = E8)
-LOAD REG 11 ([2] = 0)
-LOAD REG 11 ([3] = 80)
-LOAD REG 11 ([4] = 1)
-LOAD REG 11 ([5] = 0)
-LOAD REG 11 ([6] = 1)
-LOAD REG 11 ([7] = 24)
-LOAD REG 11 ([0] = BF)
-START 2
-READ START 1026
-
-EXPOSURE = 0000
----------------
-
-RESET 9
-LOAD REG 11 ([1] = E8)
-LOAD REG 11 ([2] = 0)
-LOAD REG 11 ([3] = 0)
-LOAD REG 11 ([4] = 1)
-LOAD REG 11 ([5] = 0)
-LOAD REG 11 ([6] = 1)
-LOAD REG 11 ([7] = 24)
-LOAD REG 11 ([0] = BF)
-START 2
-READ START 2
-
------------------------------------------------------------------
