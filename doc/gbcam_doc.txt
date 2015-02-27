@@ -182,14 +182,16 @@ way for each pixel at position (X,Y):
 - The sensor outputs an analog value, which is converted to an 8-bit value by
   the cartridge controller.
 - This value is compared to the corresponding group of 3 values of the matrix.
-  Just do (X mod 4) and (Y mod 4) to know what group of 3 values that has to be
-  used.
+  To know what group of 3 values to use do (X mod 4) and (Y mod 4).
 - ********************************************************************
-
+   OPERATIONS TO COMPARE? INVALID ORDER IN VALUES?
 
 
 To disable dithering all groups of 3 values must be the same.
 
+
+
+*******************************GAMMA?
 
 
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
