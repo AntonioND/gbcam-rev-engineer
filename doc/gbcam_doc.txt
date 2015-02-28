@@ -192,10 +192,12 @@ way for each pixel at position (X,Y):
     else gb_shade = white;
 
   This means that the minimun value to show a different color than white is 01h.
-  A value of 00h in the 3 values will always show a white screen. If two values
-  are the same, the second comparison will be ignored. If the values are
-  reversed (the higher bytes have lower values) that values are ignored. The
-  previous comparisons explain that kind of behaviours.
+  A value of 00h in the 3 values will always show a white screen. A value of FFh
+  in the 3 bytes will always allow some white pixels in a black background.
+
+  If two values are the same, the second comparison will be ignored. If the
+  values are reversed (the higher bytes have lower values) that values are
+  ignored. The previous comparisons explain that kind of behaviours.
 
 To disable dithering all groups of 3 values must be the same. Dithering is
 obtained by doing small variations in the values of each one of the 4x4 groups.
