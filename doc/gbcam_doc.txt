@@ -131,7 +131,8 @@ parameters, even if the registers are changed.
 Register A001
 -------------
 
-This register is mapped to register 1 of M64282FP.
+This register is mapped to register 1 of M64282FP. It controls the output gain
+and the edge operation mode.
 
 Registers A002,A003
 -------------------
@@ -144,12 +145,14 @@ u16 exposure_steps = [A003] | ([A002]<<8);
 Register A004
 -------------
 
-This register is mapped to register 7 of M64282FP.
+This register is mapped to register 7 of M64282FP. It sets the output voltage
+reference, the edge enhancement ratio and can invert the image.
 
 Register A005
 -------------
 
-This register is mapped to register 0 of M64282FP.
+This register is mapped to register 0 of M64282FP. It sets the output reference
+voltage and enables the zero point calibration.
 
 Registers A006-A035
 -------------------
@@ -266,6 +269,41 @@ The M64282FP does some processing to the captured image. First it performs an
 edge control, then it does gain control and last it does level control. The
 resulting analog value is the one that can be read in Vout pin.
 
+Register 1
+----------
+
+  Symbol   Bits   Operation
+    N        7    Exclusively set vertical edge enhancement mode.
+    VH      5,6   Select vertical - horizontal edge operation mode.
+    G       0-4   Analog output gain.
+
+************************************************
+
+Values written at boot: 00, 0A, 20, 24, 28, E4, E8.
+When shooting the values change based on how much light there is: 0A, E4, E8.
+
+************************************************
+
+Registers 2 and 3
+-----------------
+
+They contain the exposure time (16 bit unsigned value).
+
+exposure_steps = ([Reg2]<<8) | [Reg3]
+
+According to the M64282FP datasheet each step is 16 us. In the GB it needs 16 
+PHI clocks for every step:
+
+  Step time = 1 / 1048576 Hz * 16 = 0,954 us * 16 = 15,259 us.
+
+
+
+
+************************************************
+
+
+
+************************************************
 
 
 01234567890123456789012345678901234567890123456789012345678901234567890123456789

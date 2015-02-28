@@ -1,107 +1,5 @@
 
-                        Game Boy Camera - Technical information v0.1
-                        --------------------------------------------
 
-    Author: Antonio Niño Díaz (AntonioND) - 03/2014
-
-    First of all, I haven't tested on real hardware anything of this information. I've just
-    observed the behaviour of the GB Camera software, compared it with the read/write logs
-    that I've created with the emulator and try to understand what is going on. Nobody has
-    documented anything of this hardware (well, the datasheet of the M64282FP "retina" chip
-    is right there, but it doesn't explain how the MAC-GBD cartridge control chip handles
-    anything).
-
-    There are 2 chips that process the image. The first one is the M64282FP "retina" chip.
-    It handles exposure time, obviously, which results in the brightness regulation in GB
-    Camera software. It also performs a color offset and edge enhancing. The second chip is
-    in the cart (MAC-GBD), and it does more processing. See registers 6..35h. It handles contrast
-    and dithering.
-
-    I have ONE GB Camera cartridge, which I'm not going to use for testing. If I manage to
-    get another one I may do some hardware tests with my FPGA. I've managed to write a program,
-    copy it to a flashcart, execute it (copy some code to WRAM and jump there), turn of LCD
-    while it waits for a button to be pressed (to avoid reseting the GB during swapping because
-    some sort of scanline glitch I've read there is?) and swap cartridges with the one of the
-    GB Camera without reseting the GB Camera, but when trying to re-enable LCD it just wont't work.
-    Maybe I'll do some more tests in the future.
-
-    Some things I'd like to know:
-
-    - Actual values written to M64282FP registers when a MAC-GBD register is written.
-    - Range of values obtained from M64282FP when sending the image to MAC-GBD. Needed to
-      understand how dithering and contrast are handled. I think I understand how it works
-      more or less, but this is all guesswork.
-
-    I won't write here how the M64282FP works, so I'd be good to have the datasheet while reading
-    this to understand some things explained here. It's easy to find it online.
-
-    From gbdev wiki:
-
-    Component#   Part#/inscription    Description
-
-                 MAC-GBD
-    U1           Nintendo             I/O, memory control?
-                 9807 SA
-
-                 GBD-PCAX-0 F
-    U2           M538011-E -08        1M X 8 ROM
-                 8145507
-
-                 52CV1000SF85LL
-    U3           SHARP JAPAN          128K X 8 RAM
-                 9805 5 0A
-
-    The U1 is the only one connected to the GB cartridge pins. The U2 and U3 (ROM and RAM) are
-    connected to U1.
-
-Register 0
-----------
-
-    Execute command?
-    Take picture when writing 03h
-
-    GB CPU: 4194304 Hz -> 0.2384185791015625 (us/clock)
-    Exposure time goes from 0x0000 to 0xFFFF
-    Each exposure time step is 16 us
-    16 (us) / 0.2384185791015625 (us/clock) = 67.108864 clocks per exposure step
-    if exposure_time = 0xFFFF -> 1,048576 second delay
-
-    Needed clocks for transfer (chip transfers 128*128 pixels, the last rows are garbage).
-    Since the output value is analog, only one clock per pixel.
-    I assume the value is stored in cartridge RAM while it is being transfered. This is the logical
-    thing to think, since the RAM chip is connected directly to MAC-GBD, not to the cartridge bus.
-    It can change the owner of the RAM chip bus between GB and MAC-GBD. This means that during the
-    transfer from retina chip to RAM the GB shouldn't be able to access RAM. Or maybe trying to access
-    to RAM while a transfer is going on results in data corruption?
-
-    u16 exposure_time = reg[3] | (reg[2]<<8);
-    clocks_left = 67 * exposure_time;
-    clocks_left += 128*128; // transfer time
-
-    After that time, reg[0] clears itself.
-
-Register 1
-----------
-
-    Changes all the time when camera is working.
-    Values seen at boot: 00, 0A, 20, 24, 28, E4, E8.
-    When shooting the values used change basing on how much light there is: 0A, E4, E8.
-
-    This corresponds to this register of M64282FP:
-
-          No. Address   7   6   5   4   3   2   1   0
-          0   000      Z1  Z0  O5  O4  O3  O2  O1  O0
-
-          Symbol   Bit Assignment  Operation
-          Z        2 bits          Zero point calibration ( Set the dark level output signal to Vref )
-          O        6 bits          Output reference voltage ( In both plus and minus direction )
-
-Registers 2 and 3
------------------
-
-    Exposure time (2 MSB, 3 LSB)
-    They correspond to registers C0 and C1 of M64282FP - Exposure time (each step is 16 us)
-    u16 exposure_time = reg[3] | (reg[2]<<8);
 
 Register 4
 ----------
@@ -109,7 +7,8 @@ Register 4
     At boot is written (in hex):
 
           05
-          01 02 03 04 05 06 07
+          01 02
+          03 04 05 06 07
           03 04 05 06 07
           23 24 25 26 27
           23 24 25 26 27
@@ -143,83 +42,41 @@ Register 5
     At boot is written (in hex):
 
           80
-          BF A0 B0 B8 BC BE
-          BF BF
+          BF A0 B0 B8 BC BE BF BF
           3F
-          BF A0 B0 B8 BC BE
-          BF BF
-          BF A0 B0 B8 BC BE
-          BF BF
-          BF A0 B0 B8 BC BE
-          BF BF
-          BF A0 B0 B8 BC BE
-          BF BF
-          BF A0 B0 B8 BC BE
-          BF BF
+          BF A0 B0 B8 BC BE BF BF
+          BF A0 B0 B8 BC BE BF BF
+          BF A0 B0 B8 BC BE BF BF
+          BF A0 B0 B8 BC BE BF BF
+          BF A0 B0 B8 BC BE BF BF
           80
-          BF A0 B0 B8 BC BE
-          BF BF
+          BF A0 B0 B8 BC BE BF BF
           3F
           BF -- and stays like that forever (sometimes writes BF again?)
 
     This corresponds to this register of M64282FP:
 
-         No. Address   7   6   5   4   3   2   1   0
-         1   001       N  VH1 VH0 G4  G3  G2  G1  G0
+          No. Address   7   6   5   4   3   2   1   0
+          0   000      Z1  Z0  O5  O4  O3  O2  O1  O0
 
-         Symbol   Bit Assignment  Operation
-         N        1 bit           Exclusively set vertical edge enhancement mode (?)
-         VH       2 bits          Select vertical - horizontal edge operation mode (?)
-         G        5 bits          Analog output gain
+          Symbol   Bit Assignment  Operation
+          Z        2 bits          Zero point calibration ( Set the dark level output signal to Vref )
+          O        6 bits          Output reference voltage ( In both plus and minus direction )
 
-    I don't know what it does at boot... Calibrating or something? :P
-
-    Upper nibble:
-
-        3-0011
-        8-1000
-        A-1010
-        B-1011
-
-    It enables and disables "N" register.
-    VH1 is never set.
-    G register changes between values 0, 10, 18, 1C, 1E, 1F.
-
-    At the end:
-
-        N  = 1  - Vertical edge enhancement mode. Access to P and M registers is always ignored!!!!
-        VH = 01 - Horizontal edge mode.
-        G  = 1F - Total Gain (dB) = 57.5 dB
-
-    N and VH seems to have conflicting values. Maybe this GB Camera register corresponds to another
-    one, or this one but modifying the values... Anyway, emulate 2D edge enhancement.
 
 Registers 6..35h
 ----------------
-
-    Unknown
-    Dithering/contrast matrix? They change all 48 registers...
-    It seems that they are used by the GB cartridge itself, not by the M64282FP.
-
-    Values change when selecting dithering/normal mode, or when changing contrast.
-    In normal mode the first 3 values seems to mirror to the other registers.
-
-    48/3 = 16 = 4x4 matrix of 3 elements -> For dithering?
-    Maybe each 3 elements represent divisions of the range of 0-255 for color that the camera gives.
 
                                            Max Light              Min Light
     For example (normal mode, high light): 00112233445566778899AABBCCDDEEFF (input color range 0 - 255)
     - Min. contrast (0): 80 8F D0 ->       00000000000000001122222222233333 (output gb palete 0-3)
     - Med. contrast (7): 89 92 A2 ->       00000000000000000122333333333333
     - Max. contrast (F): 92 92 92 ->       00000000000000000033333333333333
-                                           White                      Black
+                                           Black                      White
 
     Emulating this would require to emulate the hardware even to know the actual values returned by
     the sensor... Are the input values linear or...?
 
-    4x4 matrix is row-major or column-major? Probably row-major?
-    Disable dithering -> put all groups of elements of the 4x4 matrix the same.
-    Enable dithering -> change offsets of each group of elements.
 
     Normal mode
     -----------
