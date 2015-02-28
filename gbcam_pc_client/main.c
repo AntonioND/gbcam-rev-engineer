@@ -131,7 +131,7 @@ void WindowDrawQuadButton(int ix, int iy, unsigned char on)
     struct {
         unsigned char r, g, b;
     } reg_color[4][8] = {
-        { {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{255,255,255},{255,255,255},{192,192,192} },
+        { {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{255,255,255},{255,255,255},{255,0,0} },
         { {255,0,0},{0,255,255},{0,255,255},{0,255,0},{0,255,0},{0,255,0},{0,255,0},{0,255,0} },
         { {0,0,255},{0,0,255},{0,0,255},{0,0,255},{255,255,255},{255,255,0},{255,255,0},{255,255,0} },
         { {0,255,0},{0,255,0},{255,255,0},{255,255,0},{255,255,0},{255,255,0},{255,255,0},{255,255,0} }
@@ -187,6 +187,8 @@ void WindowRender(void)
 
 //-------------------------------------------------------------------------------------
 
+unsigned char c1 = 0x40, c2 = 0x80, c3 = 0xC0;
+
 static int HandleEvents(void)
 {
     SDL_Event e;
@@ -201,6 +203,13 @@ static int HandleEvents(void)
         {
             switch(e.key.keysym.sym)
             {
+                case SDLK_KP_7: c1++; break;
+                case SDLK_KP_4: c1--; break;
+                case SDLK_KP_8: c2++; break;
+                case SDLK_KP_5: c2--; break;
+                case SDLK_KP_9: c3++; break;
+                case SDLK_KP_6: c3--; break;
+
                 case SDLK_ESCAPE:
                     return 1;
 
@@ -272,7 +281,7 @@ static int HandleEvents(void)
                 int iy = e.button.y / 32;
                 if( (ix < 8) && (iy < 4) )
                 {
-                    if(iy == 0) trig_value ^= BIT(7-ix);
+                    if(iy == 0) { trig_value ^= BIT(7-ix); trig_value &= 0x07; }
                     else if(iy == 1) reg1 ^= BIT(7-ix);
                     else if(iy == 2) reg4 ^= BIT(7-ix);
                     else if(iy == 3) reg5 ^= BIT(7-ix);
@@ -417,7 +426,7 @@ void readPicture(void)
         }
 
         unsigned char data;
-        if(SerialReadData(&data,1) != 1)
+        if(SerialReadData((char*)&data,1) != 1)
         {
             Debug_Log("SerialReadData() error in readPicture()");
             return;
@@ -449,7 +458,7 @@ void readThumbnail(void) // 2 rows of tiles
         }
 
         unsigned char data;
-        if(SerialReadData(&data,1) != 1)
+        if(SerialReadData((char*)&data,1) != 1)
         {
             Debug_Log("SerialReadData() error in readThumbnail()");
             return;
@@ -534,7 +543,13 @@ void TakePictureAndTransfer(u8 trigger, u8 unk1, u16 exposure_time, u8 unk2, u8 
         }
         else
         {
-            writeByte(0xA006+i,matrix[i%3]);
+            switch(i%3)
+            {
+                case 0: writeByte(0xA006+i,c1); break;
+                case 1: writeByte(0xA006+i,c2); break;
+                case 2: writeByte(0xA006+i,c3); break;
+            }
+            //writeByte(0xA006+i,matrix[i%3]);
         }
     }
 
@@ -570,7 +585,7 @@ void TakePictureAndTransfer(u8 trigger, u8 unk1, u16 exposure_time, u8 unk2, u8 
         }
 
         unsigned char data;
-        if(SerialReadData(&data,1) != 1)
+        if(SerialReadData((char*)&data,1) != 1)
         {
             Debug_Log("SerialReadData() error in TakePictureAndTransfer()");
             return;
@@ -837,8 +852,9 @@ return 123;
         //TakePictureAndTransfer(0x03,0xE4,0,0x07,0xBF,1,0); //Base
 
         char str[100];
-        sprintf(str,"0x%02X - 0x%02X 0x%02X 0x%02X 0x%04X - Dither %d",
-                    trig_value, reg1,reg4,reg5,exptime&0xFFFF,dither_on);
+        sprintf(str,"0x%02X - 0x%02X 0x%02X 0x%02X 0x%04X - Dither %d | %02X %02X %02X",
+                    trig_value, reg1,reg4,reg5,exptime&0xFFFF,dither_on,
+                    c1,c2,c3);
         SDL_SetWindowTitle(mWindow,str);
 
         if(takepicture)

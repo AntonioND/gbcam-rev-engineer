@@ -181,7 +181,7 @@ void processClocks(void)
       ".equ PORTB,0x05    \n"
       ".equ PIND,0x09     \n"
 
-      "cli                \n"
+      "cli                \n" // Disable interrupts
 
         "L_%=:            \n"
         "sbi PORTB,5      \n" // 2 Cycles | PORTB.5 = PHI pin = PIN 13
@@ -197,8 +197,8 @@ void processClocks(void)
         "nop              \n"
         "sbic PIND,2      \n" // 1 Cycle if set | Skip next instruction if bit cleared.
         "rjmp L_%=        \n" // 2 Cycles       | PIND.2 = data[0] = PIN 2
-        
-      "sei                \n"
+
+      "sei                \n" // Enable interrupts
       ::);
 
   setWaitMode();
