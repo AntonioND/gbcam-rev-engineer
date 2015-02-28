@@ -410,43 +410,22 @@ void readPicture(void)
     int i;
     for(i = 0; i < 16*14*16; i++)
     {
-        //picturedata[i] = readByte(0xA100+i);
-
-        while(SerialGetInQueue() < 2)
+        while(SerialGetInQueue() < 1)
         {
             if(HandleEvents()) exit(0);
             SDL_Delay(1);
         }
 
-        char data[2];
-        if(SerialReadData(data,2) != 2)
+        unsigned char data;
+        if(SerialReadData(&data,1) != 1)
         {
             Debug_Log("SerialReadData() error in readPicture()");
             return;
         }
 
-        unsigned int val = (asciihextoint(data[0])<<4)|asciihextoint(data[1]);
-        picturedata[i] = val;
-
-        if((i&63)==0)
-        {
-            char text[50];
-            sprintf(text,"%d",(i*100)/(16*14*16));
-            SDL_SetWindowTitle(mWindow,text);
-
-            if(HandleEvents()) break;
-
-            ConvertTilesToBitmap();
-
-            WindowRender();
-
-            //SDL_Delay(1);
-        }
+        picturedata[i] = data;
     }
 
-    SDL_SetWindowTitle(mWindow,"GBCam_Reverse");
-    WindowRender();
-    SDL_Delay(1);
     return;
 }
 
@@ -463,41 +442,22 @@ void readThumbnail(void) // 2 rows of tiles
     int i;
     for(i = 0; i < 16*2*16; i++)
     {
-        while(SerialGetInQueue() < 2)
+        while(SerialGetInQueue() < 1)
         {
             if(HandleEvents()) exit(0);
             SDL_Delay(1);
         }
 
-        char data[2];
-        if(SerialReadData(data,2) != 2)
+        unsigned char data;
+        if(SerialReadData(&data,1) != 1)
         {
             Debug_Log("SerialReadData() error in readThumbnail()");
             return;
         }
 
-        unsigned int val = (asciihextoint(data[0])<<4)|asciihextoint(data[1]);
-        picturedata[i] = val;
-
-        if((i&63)==0)
-        {
-            char text[50];
-            sprintf(text,"%d",(i*100)/(16*14*16));
-            SDL_SetWindowTitle(mWindow,text);
-
-            if(HandleEvents()) break;
-
-            ConvertTilesToBitmap();
-
-            WindowRender();
-
-            //SDL_Delay(1);
-        }
+        picturedata[i] = data;
     }
 
-    SDL_SetWindowTitle(mWindow,"GBCam_Reverse");
-    WindowRender();
-    SDL_Delay(1);
     return;
 }
 
@@ -570,7 +530,6 @@ void TakePictureAndTransfer(u8 trigger, u8 unk1, u16 exposure_time, u8 unk2, u8 
     {
         if(dithering)
         {
-            //writeByte(0xA006+i,matrix[i/3 + (2-i%3)]);
             writeByte(0xA006+i,matrix[i]);
         }
         else
@@ -593,7 +552,7 @@ void TakePictureAndTransfer(u8 trigger, u8 unk1, u16 exposure_time, u8 unk2, u8 
         return;
     }
 
-    while(SerialGetInQueue() < 2)
+    while(SerialGetInQueue() < 1)
     {
         if(HandleEvents()) exit(0);
         SDL_Delay(1);
@@ -604,41 +563,21 @@ void TakePictureAndTransfer(u8 trigger, u8 unk1, u16 exposure_time, u8 unk2, u8 
     int size = 16 * (thumbnail ? 2 : 14) * 16;
     for(i = 0; i < size; i++)
     {
-        while(SerialGetInQueue() < 2)
+        while(SerialGetInQueue() < 1)
         {
             if(HandleEvents()) exit(0);
             SDL_Delay(1);
         }
 
-        char data[2];
-        if(SerialReadData(data,2) != 2)
+        unsigned char data;
+        if(SerialReadData(&data,1) != 1)
         {
             Debug_Log("SerialReadData() error in TakePictureAndTransfer()");
             return;
         }
 
-        unsigned int val = (asciihextoint(data[0])<<4)|asciihextoint(data[1]);
-        picturedata[i] = val;
-
-        if((i&63)==0)
-        {
-            char text[50];
-            sprintf(text,"%d",(i*100)/(16*14*16));
-            SDL_SetWindowTitle(mWindow,text);
-
-            if(HandleEvents()) break;
-
-            ConvertTilesToBitmap();
-
-            WindowRender();
-
-            //SDL_Delay(1);
-        }
+        picturedata[i] = data;
     }
-
-    SDL_SetWindowTitle(mWindow,"GBCam_Reverse");
-    WindowRender();
-    SDL_Delay(1);
 
     ramDisable();
 
@@ -788,7 +727,7 @@ int main(int argc, char * argv[])
     SDL_SetWindowTitle(mWindow,"Inited!");
 
 /*
-int bank = 1;
+int bank = 0;
 writeByte(0x2000,bank);
 //Dump
 FILE * f = fopen("out.bin","wb");
@@ -912,7 +851,7 @@ return 123;
         {
             takethumbnail = 0;
             //ClearPicture();
-            TransferThumbnail();
+            TakePictureAndTransfer(trig_value,reg1,exptime&0xFFFF,reg4,reg5,dither_on,1);
         }
         if(readpicture)
         {
