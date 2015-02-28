@@ -1,12 +1,13 @@
                 ================================================
-                =                                              =
-                =  GAME BOY CAMERA TECHNICAL INFORMATION v0.X  =
-                =                                              =
-                =  03/2015   by Antonio Niño Díaz (AntonioND)  =
-                =                                              =
+                |                                              |
+                |  GAME BOY CAMERA TECHNICAL INFORMATION v0.X  |
+                |                                              |
+                |  03/2015   by Antonio Niño Díaz (AntonioND)  |
+                |                                              |
                 ================================================
 
 Note: This txt file is 80 columns wide!
+
 
 Introduction
 ============
@@ -38,16 +39,21 @@ The M64282FP handles most of the configuration of the capturing process. The U1
 transforms the commands from the Game Boy CPU into the correct signals needed
 for the M64282FP. The detailed timings are described below.
 
+It is a good idea to have the datasheet of the M64282FP, but it is very poorly
+explained, so this document will try to explain everything about it (except from
+limits like voltage or signal timings).
+
+
 Game Boy Camera MBC
 ===================
 
-The Game Boy Camera controller works pretty much the same as a MBC3 game.
+The Game Boy Camera controller works pretty much the same as a MBC3.
 
 0000-3FFF - ROM Bank 00 (Read Only)
 First 16 KB of the ROM.
 
-4000-7FFF - ROM Bank 01-7F (Read Only)
-This area may contain any ROM bank (0 included?) ***********************
+4000-7FFF - ROM Bank 01-3F (Read Only)
+This area may contain any ROM bank (0 included). The initial mapped bank is 01.
 
 A000-BFFF - RAM Bank 00-0F (Read/Write)
 A000-BFFF - CAM Registers (Read/Write)
@@ -56,25 +62,22 @@ the cartridge RAM or the CAM registers.
 
 0000-1FFF - RAM Enable (Write Only)
 A value of 0Ah will enable writing to RAM, 00h will disable it. Reading from RAM
-or registers is always enabled. Writing to registers is always enabled.
+or registers is always enabled. Writing to registers is always enabled. Disabled
+on reset.
 
 2000-3FFF - ROM Bank Number (Write Only)
-Writing a value of 01-3Fh select the corresponding ROM Bank for area 4000-7FFF.
+Writing a value of 00-3Fh selects the corresponding ROM Bank for area 4000-7FFF.
 
 4000-5FFF - RAM Bank Number/CAM Registers Select (Write Only)
 Writing a value in range for 00h-0Fh maps the corresponding external RAM Bank to
 memory at A000-BFFF. Writing any value with bit 5 set to '1' will select CAM
-registers. Usually bank 10h is used to select the registers.
-
-***************************************************************************
-
-01234567890123456789012345678901234567890123456789012345678901234567890123456789
-
-
+registers. Usually bank 10h is used to select the registers. All registers are
+mirrored every 80h bytes. RAM bank 0 selected on reset.
 
 IMPORTANT NOTE: Unlike most games, the GB Camera RAM can only be written when
 PHI pin = '1'. It's an enable signal for the RAM chip. Most cartridge readers
-and writers can't handle PHI pin so they can't restore a saved backup.
+and writers can't handle PHI pin so they can't restore a saved backup. It isn't
+needed to change ROM banks.
 
 
 Game Boy Camera registers
@@ -94,7 +97,7 @@ There are 3 groups of registers:
   and dithering.
 
 All registers are write-only, except the register A000. The other ones return
-0x00 when read.
+00h when read. The initial values of all registers on reset is 00h.
 
 Register A000
 -------------
@@ -107,12 +110,12 @@ write with bit 0 set to '0' is ignored.
 The value of bits 1 and 2 affect the value written to registers 4, 5 and 6 of
 the M64282FP:
 
-[A000] | [4] [5] [6]
--------+------------
-1(001) |  00  01  01
-3(011) |  01  00  01
-5(101) |  01  02  01
-7(111) |  01  02  01
+[A000] |  [4]  [5]  [6]
+-------+---------------
+1(001) |  00h  01h  01h
+3(011) |  01h  00h  01h
+5(101) |  01h  02h  01h
+7(111) |  01h  02h  01h
 
 Bit 0 of this register is also used to verify if the capturing process is
 finished. It returns '1' when the hardware is working and '0' if the capturing
@@ -121,12 +124,14 @@ process is over.
 When the capture process is active all RAM banks will return 0x00 when read, but
 the register A000 can still be read to know when the transfer is finished.
 
+The capturing process can be stopped by writting a '0' to bit 0, but it can't be
+be restarted during the process by writing another value to this register, it
+must be stopped first.
+
 Register A001
 -------------
 
 This register is mapped to register 1 of M64282FP.
-
-********************************************************************
 
 Registers A002,A003
 -------------------
@@ -136,21 +141,15 @@ exposure time. Register 2 is the MSB, register 3 is the LSB.
 
 u16 exposure_steps = [A003] | ([A002]<<8);
 
-********************************************************************
-
 Register A004
 -------------
 
 This register is mapped to register 7 of M64282FP.
 
-********************************************************************
-
 Register A005
 -------------
 
 This register is mapped to register 0 of M64282FP.
-
-********************************************************************
 
 Registers A006-A035
 -------------------
@@ -251,15 +250,15 @@ Obviously, that's the previous result divided by 2.
 During the read process every pixel is written when it is read from the sensor.
 If the read process is stopped (by shutting the GB down, for example) the RAM
 will have the contents of the current picture until the read was stopped, from
-there it will have the data from the previous captured image.
+there it will have the data from the image captured before that one.
 
 
+M64282FP sensor
+===============
 
-
-
-
-
-
+The M64282FP does some processing to the captured image. First it performs an
+edge control, then it does gain control and last it does level control. The
+resulting analog value is the one that can be read in Vout pin.
 
 
 
