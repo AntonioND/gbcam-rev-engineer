@@ -41,7 +41,7 @@ int debugpicture = 0;
 //-------------------------------------------------------------------------------------
 
 #define GBCAM_W (128)
-#define GBCAM_H (112+16)
+#define GBCAM_H (112)
 
 #define SCREEN_W (GBCAM_W*3 * 2)
 #define SCREEN_H (GBCAM_H*3)
@@ -316,7 +316,7 @@ static int Init(void)
 
 //-------------------------------------------------------------------------------------
 
-unsigned char picturedata[16*16*8*8]; // max( 16*8*16*8, 16*14*16 ) sensor pixels , tile bytes
+unsigned char picturedata[16*14*8*8]; // max( 16*8*14*8, 16*14*16 ) sensor pixels , tile bytes
 
 void ConvertTilesToBitmap(void)
 {
@@ -350,7 +350,7 @@ void ConvertAnalogToBitmap(void)
     memset(GBCAM_BUFFER,0,sizeof(GBCAM_BUFFER));
 
     int y, x;
-    for(y = 0; y < 16*8; y++) for(x = 0; x < 16*8; x ++)
+    for(y = 0; y < 14*8; y++) for(x = 0; x < 16*8; x ++)
     {
         int index = y*16*8 + x;
 
@@ -656,7 +656,7 @@ void TakePictureAnalogAndTransfer(u8 trigger, u8 unk1, u16 exposure_time, u8 unk
 
     SDL_SetWindowTitle(mWindow,"Reading picture...");
 
-    int size = 16*8 * 16*8;
+    int size = 16*8 * 14*8;
     int i;
     for(i = 0; i < size; i++)
     {

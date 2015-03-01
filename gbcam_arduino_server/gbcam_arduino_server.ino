@@ -237,6 +237,31 @@ __attribute__((naked)) void processClocksExposureTime(void)
         "sbis PINC,2      \n" // 1 Cycle if clear | Skip next instruction if bit set (sensor started to output analog data).
         "rjmp L_%=        \n" // 2 Cycles         | PINC.2 = sensor_read_pin
 
+      "push r16           \n"
+      "push r17           \n"
+      
+      "ldi r17,8          \n" // Skip 8 lines
+        "L_2_out_%=:        \n"
+        "ldi r16,0          \n"
+          "L_2_in_%=:       \n"
+          "sbi PORTB,5      \n" // 2 Cycles | PORTB.5 = PHI pin = PIN 13
+          "nop              \n" // 1 Cycle
+          "nop              \n"
+          "nop              \n"
+          "nop              \n"
+          "nop              \n"
+          "nop              \n"
+          "cbi PORTB,5      \n" // 2 Cycles
+          "nop              \n"
+          "nop              \n"
+          "dec r16          \n" // 1 Cycle
+          "brne L_2_in_%=   \n" // 2 Cycles
+        "dec r17          \n" // 1 Cycle
+        "brne L_2_out_%=  \n" // 2 Cycles
+
+      "pop r17            \n"
+      "pop r16            \n"
+      
       "sei                \n" // Enable interrupts
       ::);
 }
@@ -290,24 +315,19 @@ void takePictureReadAnalog(unsigned char trigger_arg)
   writeCartByte(0xA000,trigger_arg); // Trigger
 
   processClocksExposureTime();
-  
-  asm volatile ( // next pixel - 2 clocks
-      ".equ PORTB,0x05\n"
-      "sbi PORTB,5\nnop\nnop\nnop\nnop\nnop\nnop\ncbi PORTB,5\nnop\nnop\nnop\nnop\nnop\n"
-      "sbi PORTB,5\nnop\nnop\nnop\nnop\nnop\nnop\ncbi PORTB,5\nnop\nnop\nnop\nnop\nnop\n"
-      ::);
-      
-  unsigned int _size = 16*8 * 16*8;
+    
+  unsigned int _size = 16*8 * 14*8;
   while(_size--)
   {
+    asm volatile ( ".equ PORTB,0x05\n" "sbi PORTB,5\n" ::);
+      
     unsigned char v = (analogRead(sensor_vout_pin)>>2); // 10 to 8 resolution bits
+    
+    asm volatile ( ".equ PORTB,0x05\n" "cbi PORTB,5\n" ::);
+      
     Serial.write(v);
     
-    asm volatile ( // next pixel - 2 clocks
-      ".equ PORTB,0x05\n"
-      "sbi PORTB,5\nnop\nnop\nnop\nnop\nnop\nnop\ncbi PORTB,5\nnop\nnop\nnop\nnop\nnop\n"
-      "sbi PORTB,5\nnop\nnop\nnop\nnop\nnop\nnop\ncbi PORTB,5\nnop\nnop\nnop\nnop\nnop\n"
-      ::);
+    asm volatile ( ".equ PORTB,0x05\n" "sbi PORTB,5\nnop\nnop\nnop\nnop\nnop\nnop\ncbi PORTB,5\n" ::);
   }
   
   processClocks(); // just in case

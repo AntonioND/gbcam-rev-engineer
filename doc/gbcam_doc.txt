@@ -181,8 +181,10 @@ dithering and contrast, and they are sorted by rows:
 This values are used for the contrast and dithering effects in the following
 way for each pixel at position (X,Y):
 
-- The sensor outputs an analog value, which is converted to an 8-bit value by
-  the cartridge controller.
+- The sensor outputs an analog value. This value is compared to the 
+  corresponding group of 3 values of the matrix probably using 3 DACs and 3
+  comparators (as clock timings doesn't affect the result when converting from
+  analog to digital, most ADCs would be affected).
 
 - This value is compared to the corresponding group of 3 values of the matrix.
   To know what group of 3 values to use do (X mod 4) and (Y mod 4).
@@ -269,6 +271,12 @@ the image.
 The Game Boy Camera controller only uses the medium rows of the sensor image.
 This means that it ignores the first 8 rows and the last 8 rows.
 
+The clock signal during read period must be the same as the one used during the
+exposure time. If the clock during the read period is too slow the sensor will
+continue increasing the charge values of each pixel so the image will appear to
+be taken with a higher exposure time. The brightness doesn't seem to increase
+always, there seems to be some kind of limit.
+
 
 M64282FP sensor
 ===============
@@ -312,6 +320,11 @@ PHI clocks for every step:
 
 
 ************************************************
+
+
+M64282FP image processing
+=========================
+
 
 
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
