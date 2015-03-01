@@ -30,6 +30,9 @@ const int data_pins[8] = {
   2, 3, 15, 14, 4, 5, 6, 7 // PIN 2 = PORTD.2
 };
 
+const int sensor_read_pin = 16; // PINC.2
+const int sensor_vout_pin = 17;
+
 #define BIT(n) (1<<(n))
 
 //--------------------------------------------------------
@@ -44,6 +47,13 @@ static inline unsigned int asciihextoint(char c)
 static inline unsigned int asciidectoint(char c)
 {
   if((c >= '0') && (c <= '9')) return c - '0';
+  return 0;
+}
+
+static inline char inttoasciihex(int n)
+{
+  if(n < 10) return '0' + n;
+  if(n < 16) return 'A' + n - 10;
   return 0;
 }
 
@@ -204,13 +214,42 @@ void processClocks(void)
   setWaitMode();
 }
 
+__attribute__((naked)) void processClocksExposureTime(void)
+{
+  asm volatile (
+      ".equ PORTB,0x05    \n"
+      ".equ PINC,0x06     \n"
+
+      "cli                \n" // Disable interrupts
+
+        "L_%=:            \n"
+        "sbi PORTB,5      \n" // 2 Cycles | PORTB.5 = PHI pin = PIN 13
+        "nop              \n" // 1 Cycle
+        "nop              \n"
+        "nop              \n"
+        "nop              \n"
+        "nop              \n"
+        "nop              \n"
+        "cbi PORTB,5      \n" // 2 Cycles
+        //"nop              \n" // Comment 1 nop: 16 MHz / 15 = 1066667 Hz (closer to 1048576 Hz than 16 MHz / 16 = 1000000 Hz)
+        "nop              \n"
+        "nop              \n"
+        "sbis PINC,2      \n" // 1 Cycle if clear | Skip next instruction if bit set (sensor started to output analog data).
+        "rjmp L_%=        \n" // 2 Cycles         | PINC.2 = sensor_read_pin
+
+      "sei                \n" // Enable interrupts
+      ::);
+}
+
 //--------------------------------------------------------
 
 void readPrintCart(unsigned int address)
 {
-  char string[50];
-  unsigned int value = readCartByte(address);
-  sprintf(string,"%02X",value);
+  char string[3];
+  unsigned char value = readCartByte(address);
+  string[0] = inttoasciihex(value>>4);
+  string[1] = inttoasciihex(value&0xF);
+  string[2] = '\0';
   Serial.print(string);
 }
 
@@ -243,6 +282,37 @@ void takePicture(unsigned char trigger_arg, char is_thumbnail)
   setWaitMode();
 }
 
+void takePictureReadAnalog(unsigned char trigger_arg)
+{
+  writeCartByte(0x0000,0x0A); // Enable RAM
+  writeCartByte(0x4000,0x10); // Set register mode
+  
+  writeCartByte(0xA000,trigger_arg); // Trigger
+
+  processClocksExposureTime();
+  
+  asm volatile ( // next pixel - 2 clocks
+      ".equ PORTB,0x05\n"
+      "sbi PORTB,5\nnop\nnop\nnop\nnop\nnop\nnop\ncbi PORTB,5\nnop\nnop\nnop\nnop\nnop\n"
+      "sbi PORTB,5\nnop\nnop\nnop\nnop\nnop\nnop\ncbi PORTB,5\nnop\nnop\nnop\nnop\nnop\n"
+      ::);
+      
+  unsigned int _size = 16*8 * 16*8;
+  while(_size--)
+  {
+    unsigned char v = (analogRead(sensor_vout_pin)>>2); // 10 to 8 resolution bits
+    Serial.write(v);
+    
+    asm volatile ( // next pixel - 2 clocks
+      ".equ PORTB,0x05\n"
+      "sbi PORTB,5\nnop\nnop\nnop\nnop\nnop\nnop\ncbi PORTB,5\nnop\nnop\nnop\nnop\nnop\n"
+      "sbi PORTB,5\nnop\nnop\nnop\nnop\nnop\nnop\ncbi PORTB,5\nnop\nnop\nnop\nnop\nnop\n"
+      ::);
+  }
+  
+  processClocks(); // just in case
+}
+
 void readPicture(char is_thumbnail)
 {
   writeCartByte(0x0000,0x0A); // Enable RAM
@@ -263,40 +333,8 @@ void readPicture(char is_thumbnail)
 
 //--------------------------------------------------------
 
-char command_string[30];
+char command_string[20];
 int command_string_ptr;
-
-//--------------------------------------------------------
-
-void setup()
-{
-  command_string_ptr = 0;
-  
-  pinMode(phi_pin, OUTPUT);
-  pinMode(nwr_pin, OUTPUT);
-  pinMode(nrd_pin, OUTPUT);
-  pinMode(ncs_pin, OUTPUT);
-  
-  pinMode(addr_data_pin, OUTPUT);
-  pinMode(addr_clk_pin, OUTPUT);
-   
-  int i;
-  for(i = 0; i < 8; i++)
-    pinMode(data_pins[i], INPUT);
-  
-  //---------------------------
-  
-  setAddress(0x0000);
-
-  digitalWrite(phi_pin, LOW);
-  digitalWrite(nwr_pin, HIGH);
-  digitalWrite(nrd_pin, HIGH);
-  digitalWrite(ncs_pin, HIGH);
-
-  //---------------------------
-
-  Serial.begin(115200);
-}
 
 //--------------------------------------------------------
 
@@ -308,7 +346,7 @@ void loop()
   {
     char c = Serial.read();
     command_string[command_string_ptr++] = c;
-    if(command_string_ptr == 29) // overflow
+    if(command_string_ptr == 19) // overflow
     {
       command_string_ptr = 0;
     }
@@ -338,6 +376,13 @@ void loop()
                             (asciihextoint(command_string[3])<<4)|asciihextoint(command_string[4]);
         unsigned int value = (asciihextoint(command_string[5])<<4)|asciihextoint(command_string[6]);
         writePrintCart(addr,value);
+        break;
+      }
+      
+      case 'A': //take picture and read analog values
+      {
+        unsigned int value = (asciihextoint(command_string[1])<<4)|asciihextoint(command_string[2]);
+        takePictureReadAnalog(value);
         break;
       }
       
@@ -428,7 +473,7 @@ void loop()
         writeCartByte(0x4000,0x10); // Set register mode
         
         unsigned long int clocks = 0;
-#if 1
+
         setAddress(0xA000);
         setReadMode(0xA000 < 0x8000);
         while(1)
@@ -440,17 +485,7 @@ void loop()
         }
         digitalWrite(phi_pin, LOW);
         setWaitMode();
-#endif
-#if 0
-        for(clocks = 0; clocks < 128; clocks++)
-        {
-          digitalWrite(phi_pin, LOW);
-          delayMicroseconds(1);
-          digitalWrite(phi_pin, HIGH);
-          delayMicroseconds(1);
-        }
-        digitalWrite(phi_pin, LOW);
-#endif
+
         char string[50];
         sprintf(string,"%08lu",clocks % 100000000);
         Serial.print(string);
@@ -464,4 +499,42 @@ void loop()
   }
 }
 
+//--------------------------------------------------------
+
+void setup()
+{
+  command_string_ptr = 0;
+  
+  pinMode(phi_pin, OUTPUT);
+  pinMode(nwr_pin, OUTPUT);
+  pinMode(nrd_pin, OUTPUT);
+  pinMode(ncs_pin, OUTPUT);
+  
+  pinMode(addr_data_pin, OUTPUT);
+  pinMode(addr_clk_pin, OUTPUT);
+   
+  int i;
+  for(i = 0; i < 8; i++)
+    pinMode(data_pins[i], INPUT);
+  
+  //---------------------------
+  
+  setAddress(0x0000);
+
+  digitalWrite(phi_pin, LOW);
+  digitalWrite(nwr_pin, HIGH);
+  digitalWrite(nrd_pin, HIGH);
+  digitalWrite(ncs_pin, HIGH);
+
+  //---------------------------
+  
+  pinMode(sensor_read_pin, INPUT);
+  pinMode(sensor_vout_pin, INPUT);
+  
+  //---------------------------
+  
+  Serial.begin(115200);
+}
+
+//--------------------------------------------------------
 

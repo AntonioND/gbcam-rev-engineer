@@ -261,6 +261,14 @@ If the read process is stopped (by shutting the GB down, for example) the RAM
 will have the contents of the current picture until the read was stopped, from
 there it will have the data from the image captured before that one.
 
+The sensor transfers 128x128 pixels, but the upper and lower rows are corrupted.
+With N=1, the 5 first rows are darker than the rest of the image. The last 6
+rows only contain garbage, and the previous row is also darker than the rest of
+the image.
+
+The Game Boy Camera controller only uses the medium rows of the sensor image.
+This means that it ignores the first 8 rows and the last 8 rows.
+
 
 M64282FP sensor
 ===============

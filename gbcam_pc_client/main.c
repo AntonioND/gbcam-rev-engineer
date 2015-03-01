@@ -33,7 +33,7 @@ u16 exptime = 0x0500;
 //-------------------------------------------------------------------------------------
 
 //Keyboard events
-int takepicture = 0, takethumbnail = 0;
+int takepicture = 0, takeanalog = 0;
 int readpicture = 0;
 int dither_on = 1;
 int debugpicture = 0;
@@ -41,7 +41,7 @@ int debugpicture = 0;
 //-------------------------------------------------------------------------------------
 
 #define GBCAM_W (128)
-#define GBCAM_H (112)
+#define GBCAM_H (112+16)
 
 #define SCREEN_W (GBCAM_W*3 * 2)
 #define SCREEN_H (GBCAM_H*3)
@@ -156,6 +156,8 @@ void WindowDrawQuadButton(int ix, int iy, unsigned char on)
 
 void WindowRender(void)
 {
+    memset(SCREEN_BUFFER,0x10,sizeof(SCREEN_BUFFER));
+
     int i;
     for(i = 0; i < 8; i ++)
     {
@@ -263,7 +265,7 @@ static int HandleEvents(void)
                     takepicture = 1;
                     break;
                 case SDLK_BACKSPACE:
-                    takethumbnail = 1;
+                    takeanalog = 1;
                     break;
                 case SDLK_SPACE:
                     readpicture = 1;
@@ -314,7 +316,7 @@ static int Init(void)
 
 //-------------------------------------------------------------------------------------
 
-unsigned char picturedata[16*14*16];
+unsigned char picturedata[16*16*8*8]; // max( 16*8*16*8, 16*14*16 ) sensor pixels , tile bytes
 
 void ConvertTilesToBitmap(void)
 {
@@ -340,6 +342,24 @@ void ConvertTilesToBitmap(void)
         GBCAM_BUFFER[bufindex+0] = gb_pal_colors[color];
         GBCAM_BUFFER[bufindex+1] = gb_pal_colors[color];
         GBCAM_BUFFER[bufindex+2] = gb_pal_colors[color];
+    }
+}
+
+void ConvertAnalogToBitmap(void)
+{
+    memset(GBCAM_BUFFER,0,sizeof(GBCAM_BUFFER));
+
+    int y, x;
+    for(y = 0; y < 16*8; y++) for(x = 0; x < 16*8; x ++)
+    {
+        int index = y*16*8 + x;
+
+        int color = picturedata[index];
+
+        int bufindex = (y*GBCAM_W+x)*3;
+        GBCAM_BUFFER[bufindex+0] = color;
+        GBCAM_BUFFER[bufindex+1] = color;
+        GBCAM_BUFFER[bufindex+2] = color;
     }
 }
 
@@ -597,6 +617,66 @@ void TakePictureAndTransfer(u8 trigger, u8 unk1, u16 exposure_time, u8 unk2, u8 
     ramDisable();
 
     ConvertTilesToBitmap();
+}
+
+void TakePictureAnalogAndTransfer(u8 trigger, u8 unk1, u16 exposure_time, u8 unk2, u8 unk3,
+                            int dithering)
+{
+    SDL_SetWindowTitle(mWindow,"Taking picture...");
+
+    ramEnable();
+
+    setRegisterMode();
+
+    writeByte(0xA000,0x00);
+
+    writeByte(0xA001,unk1);
+
+    writeByte(0xA002,(exposure_time>>8)&0xFF);
+    writeByte(0xA003,exposure_time&0xFF);
+
+    writeByte(0xA004,unk2);
+
+    writeByte(0xA005,unk3);
+
+    char str[50];
+    sprintf(str,"A%02X.",trigger&0xFF);
+
+    if(SerialWriteData(str,4) == 0)
+    {
+        Debug_Log("SerialWriteData() error in TakePictureAnalogAndTransfer()");
+        return;
+    }
+
+    while(SerialGetInQueue() < 1)
+    {
+        if(HandleEvents()) exit(0);
+        SDL_Delay(1);
+    }
+
+    SDL_SetWindowTitle(mWindow,"Reading picture...");
+
+    int size = 16*8 * 16*8;
+    int i;
+    for(i = 0; i < size; i++)
+    {
+        while(SerialGetInQueue() < 1)
+        {
+            if(HandleEvents()) exit(0);
+            SDL_Delay(1);
+        }
+
+        unsigned char data;
+        if(SerialReadData((char*)&data,1) != 1)
+        {
+            Debug_Log("SerialReadData() error in TakePictureAnalogAndTransfer()");
+            return;
+        }
+
+        picturedata[i] = data;
+
+        ConvertAnalogToBitmap();
+    }
 }
 
 void TakePicture(u8 trigger, u8 unk1, u16 exposure_time, u8 unk2, u8 unk3,
@@ -863,11 +943,11 @@ return 123;
             //ClearPicture();
             TakePictureAndTransfer(trig_value,reg1,exptime&0xFFFF,reg4,reg5,dither_on,0);
         }
-        else if(takethumbnail)
+        else if(takeanalog)
         {
-            takethumbnail = 0;
+            takeanalog = 0;
             //ClearPicture();
-            TakePictureAndTransfer(trig_value,reg1,exptime&0xFFFF,reg4,reg5,dither_on,1);
+            TakePictureAnalogAndTransfer(trig_value,reg1,exptime&0xFFFF,reg4,reg5,dither_on);
         }
         if(readpicture)
         {
