@@ -50,6 +50,7 @@ int debugpicture = 0;
 
 static unsigned char SCREEN_BUFFER[SCREEN_W*SCREEN_H*3];
 static unsigned char GBCAM_BUFFER[GBCAM_W*GBCAM_H*3];
+static unsigned char HISTOGRAM_BUFFER[256*(SCREEN_H/2)*3];
 
 int WindowCreate(void)
 {
@@ -173,6 +174,13 @@ void WindowRender(void)
         SCREEN_BUFFER[(i+j*SCREEN_W)*3 + 0] = GBCAM_BUFFER[( (i/3)+(j/3)*GBCAM_W)*3 + 0];
         SCREEN_BUFFER[(i+j*SCREEN_W)*3 + 1] = GBCAM_BUFFER[( (i/3)+(j/3)*GBCAM_W)*3 + 1];
         SCREEN_BUFFER[(i+j*SCREEN_W)*3 + 2] = GBCAM_BUFFER[( (i/3)+(j/3)*GBCAM_W)*3 + 2];
+    }
+
+    for(j = 0; j < SCREEN_H/2; j++) for(i = 0; i < 256; i++)
+    {
+        SCREEN_BUFFER[(i+GBCAM_W*3+(j+SCREEN_H/2)*SCREEN_W)*3 + 0] = HISTOGRAM_BUFFER[(i+j*256)*3 + 0];
+        SCREEN_BUFFER[(i+GBCAM_W*3+(j+SCREEN_H/2)*SCREEN_W)*3 + 1] = HISTOGRAM_BUFFER[(i+j*256)*3 + 1];
+        SCREEN_BUFFER[(i+GBCAM_W*3+(j+SCREEN_H/2)*SCREEN_W)*3 + 2] = HISTOGRAM_BUFFER[(i+j*256)*3 + 2];
     }
 
     SDL_UpdateTexture(mTexture, NULL, (void*)SCREEN_BUFFER, SCREEN_W*3);
@@ -323,6 +331,8 @@ void ConvertTilesToBitmap(void)
     //Convert to bitmap
     memset(GBCAM_BUFFER,0,sizeof(GBCAM_BUFFER));
 
+    memset(HISTOGRAM_BUFFER,0,sizeof(HISTOGRAM_BUFFER));
+
     const int gb_pal_colors[4] = { 255, 168, 80, 0 };
 
     int y, x;
@@ -349,17 +359,39 @@ void ConvertAnalogToBitmap(void)
 {
     memset(GBCAM_BUFFER,0,sizeof(GBCAM_BUFFER));
 
+    memset(HISTOGRAM_BUFFER,0,sizeof(HISTOGRAM_BUFFER));
+
+    int histogram[256];
+    memset(histogram,0,sizeof(histogram));
+
     int y, x;
     for(y = 0; y < 14*8; y++) for(x = 0; x < 16*8; x ++)
     {
         int index = y*16*8 + x;
 
-        int color = picturedata[index];
+        unsigned char color = picturedata[index];
 
         int bufindex = (y*GBCAM_W+x)*3;
         GBCAM_BUFFER[bufindex+0] = color;
         GBCAM_BUFFER[bufindex+1] = color;
         GBCAM_BUFFER[bufindex+2] = color;
+
+        histogram[color] ++;
+    }
+
+    int c;
+    for(c = 0; c < 256; c++)
+    {
+        int start_coord = (SCREEN_H/2) - histogram[c];
+        if(start_coord < 0) start_coord = 0;
+
+        int j;
+        for(j = start_coord; j < (SCREEN_H/2); j++)
+        {
+            HISTOGRAM_BUFFER[(j*256+c)*3+0] = 0xFF;
+            HISTOGRAM_BUFFER[(j*256+c)*3+1] = 0xFF;
+            HISTOGRAM_BUFFER[(j*256+c)*3+2] = 0xFF;
+        }
     }
 }
 
