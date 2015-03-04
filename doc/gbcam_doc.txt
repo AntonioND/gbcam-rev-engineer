@@ -207,6 +207,18 @@ way for each pixel at position (X,Y):
 To disable dithering all groups of 3 values must be the same. Dithering is
 obtained by doing small variations in the values of each one of the 4x4 groups.
 
+The digital-to-analog conversion is not linear in the sense that a signal of 0V
+doesn't correspond to a digital value of 00h, it's affine: A value of 00h is
+around 0.8V and a value of FFh is around 4.1V. Note that the sensor has a 5.0V
+supply. That means that the value range is aproximately 3.3V, but it can't be
+reached by the sensor output. The sensor can only output from aproximately 0.9V
+to 4.0V (by modifying Vref and other configuration values). The previous limits
+have been determined by extrapolating.
+
+According to the sensor datasheet the output voltage range is 2.0V peak to peak
+(102 in digital), so that's the range of values that the controller has to
+convert into 4 Game Boy grey shades.
+
 
 Game Boy Camera timings
 =======================
