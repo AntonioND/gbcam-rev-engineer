@@ -157,7 +157,7 @@ void WindowDrawQuadButton(int ix, int iy, unsigned char on)
 
 void WindowRender(void)
 {
-    memset(SCREEN_BUFFER,0x10,sizeof(SCREEN_BUFFER));
+    memset(SCREEN_BUFFER,0x20,sizeof(SCREEN_BUFFER));
 
     int i;
     for(i = 0; i < 8; i ++)
@@ -220,8 +220,7 @@ static int HandleEvents(void)
                 case SDLK_KP_9: c3++; break;
                 case SDLK_KP_6: c3--; break;
 
-                case SDLK_ESCAPE:
-                    return 1;
+                case SDLK_ESCAPE: return 1;
 
                 case SDLK_r:
                     reg1 = 0xE8;
@@ -229,58 +228,39 @@ static int HandleEvents(void)
                     reg5 = 0xBF;
                     exptime = 0x1500;
                     break;
-
-                case SDLK_t:
-                    trig_value ++;
-                    break;
-                case SDLK_g:
-                    trig_value --;
-                    break;
-
-                case SDLK_q:
-                    reg1 ++;
-                    break;
-                case SDLK_a:
-                    reg1 --;
+                case SDLK_f:
+                    reg1 = 0xE8;
+                    reg4 = 0x24;
+                    reg5 = 0xBF;
+                    exptime = 0x0040;
                     break;
 
-                case SDLK_w:
-                    reg4 ++;
-                    break;
-                case SDLK_s:
-                    reg4 --;
-                    break;
+                case SDLK_t: trig_value ++; break;
+                case SDLK_g: trig_value --; break;
 
-                case SDLK_e:
-                    reg5 ++;
-                    break;
-                case SDLK_d:
-                    reg5 --;
-                    break;
+                case SDLK_q: reg1 ++; break;
+                case SDLK_a: reg1 --; break;
 
-                case SDLK_z:
-                    dither_on = !dither_on;
-                    break;
+                case SDLK_w: reg4 ++; break;
+                case SDLK_s: reg4 --; break;
 
-                case SDLK_UP:
-                    exptime +=0x40;
-                    break;
-                case SDLK_DOWN:
-                    exptime -=0x40;
-                    break;
+                case SDLK_e: reg5 ++; break;
+                case SDLK_d: reg5 --; break;
 
-                case SDLK_RETURN:
-                    takepicture = 1;
-                    break;
-                case SDLK_BACKSPACE:
-                    takeanalog = 1;
-                    break;
-                case SDLK_SPACE:
-                    readpicture = 1;
-                    break;
-                case SDLK_p:
-                    debugpicture = 1;
-                    break;
+                case SDLK_z: dither_on = !dither_on; break;
+
+                case SDLK_UP: exptime +=0x10; break;
+                case SDLK_DOWN: exptime -=0x10; break;
+
+                case SDLK_RETURN: takepicture = 1; break;
+
+                case SDLK_BACKSPACE: takeanalog = 1; break;
+
+                case SDLK_SPACE: readpicture = 1; break;
+
+                case SDLK_p: debugpicture = 1; break;
+
+                default: break;
             }
         }
         else if(e.type == SDL_MOUSEBUTTONDOWN)
@@ -550,26 +530,8 @@ unsigned int waitPictureReady(void)
 
 //-------------------------------------------------------------------------------------
 
-void TakePictureAndTransfer(u8 trigger, u8 unk1, u16 exposure_time, u8 unk2, u8 unk3,
-                            int dithering, int thumbnail)
+void UpdateMatrixRegisters(int dithering)
 {
-    SDL_SetWindowTitle(mWindow,"Taking picture...");
-
-    ramEnable();
-
-    setRegisterMode();
-
-    writeByte(0xA000,0x00);
-
-    writeByte(0xA001,unk1);
-
-    writeByte(0xA002,(exposure_time>>8)&0xFF);
-    writeByte(0xA003,exposure_time&0xFF);
-
-    writeByte(0xA004,unk2);
-
-    writeByte(0xA005,unk3);
-
     //const unsigned char matrix[] = // high light
     //{
     //    0x89, 0x92, 0xA2, 0x8F, 0x9E, 0xC6, 0x8A, 0x95, 0xAB, 0x91, 0xA1, 0xCF,
@@ -604,6 +566,30 @@ void TakePictureAndTransfer(u8 trigger, u8 unk1, u16 exposure_time, u8 unk2, u8 
             //writeByte(0xA006+i,matrix[i%3]);
         }
     }
+}
+
+
+void TakePictureAndTransfer(u8 trigger, u8 unk1, u16 exposure_time, u8 unk2, u8 unk3,
+                            int dithering, int thumbnail)
+{
+    SDL_SetWindowTitle(mWindow,"Taking picture...");
+
+    ramEnable();
+
+    setRegisterMode();
+
+    writeByte(0xA000,0x00);
+
+    writeByte(0xA001,unk1);
+
+    writeByte(0xA002,(exposure_time>>8)&0xFF);
+    writeByte(0xA003,exposure_time&0xFF);
+
+    writeByte(0xA004,unk2);
+
+    writeByte(0xA005,unk3);
+
+    UpdateMatrixRegisters(dithering);
 
     setRamModeBank0();
 
@@ -628,6 +614,7 @@ void TakePictureAndTransfer(u8 trigger, u8 unk1, u16 exposure_time, u8 unk2, u8 
     SDL_SetWindowTitle(mWindow,"Reading picture...");
 
     int size = 16 * (thumbnail ? 2 : 14) * 16;
+    int i;
     for(i = 0; i < size; i++)
     {
         while(SerialGetInQueue() < 1)
@@ -671,6 +658,8 @@ void TakePictureAnalogAndTransfer(u8 trigger, u8 unk1, u16 exposure_time, u8 unk
 
     writeByte(0xA005,unk3);
 
+    UpdateMatrixRegisters(dithering);
+
     char str[50];
     sprintf(str,"A%02X.",trigger&0xFF);
 
@@ -712,7 +701,7 @@ void TakePictureAnalogAndTransfer(u8 trigger, u8 unk1, u16 exposure_time, u8 unk
 }
 
 void TakePicture(u8 trigger, u8 unk1, u16 exposure_time, u8 unk2, u8 unk3,
-                 int dithering_enabled)
+                 int dithering)
 {
     SDL_SetWindowTitle(mWindow,"Taking picture...");
 
@@ -730,34 +719,7 @@ void TakePicture(u8 trigger, u8 unk1, u16 exposure_time, u8 unk2, u8 unk3,
 
     writeByte(0xA005,unk3);
 
-    //const unsigned char matrix[] = // high light
-    //{
-    //    0x89, 0x92, 0xA2, 0x8F, 0x9E, 0xC6, 0x8A, 0x95, 0xAB, 0x91, 0xA1, 0xCF,
-    //    0x8D, 0x9A, 0xBA, 0x8B, 0x96, 0xAE, 0x8F, 0x9D, 0xC3, 0x8C, 0x99, 0xB7,
-    //    0x8A, 0x94, 0xA8, 0x90, 0xA0, 0xCC, 0x89, 0x93, 0xA5, 0x90, 0x9F, 0xC9,
-    //    0x8E, 0x9C, 0xC0, 0x8C, 0x98, 0xB4, 0x8E, 0x9B, 0xBD, 0x8B, 0x97, 0xB1
-    //};
-
-    const unsigned char matrix[48] = // low light
-    {
-        0x8C, 0x98, 0xAC, 0x95, 0xA7, 0xDB, 0x8E, 0x9B, 0xB7, 0x97, 0xAA, 0xE7,
-        0x92, 0xA2, 0xCB, 0x8F, 0x9D, 0xBB, 0x94, 0xA5, 0xD7, 0x91, 0xA0, 0xC7,
-        0x8D, 0x9A, 0xB3, 0x96, 0xA9, 0xE3, 0x8C, 0x99, 0xAF, 0x95, 0xA8, 0xDF,
-        0x93, 0xA4, 0xD3, 0x90, 0x9F, 0xC3, 0x92, 0xA3, 0xCF, 0x8F, 0x9E, 0xBF
-    };
-
-    int i;
-    for(i = 0; i < 48; i++)
-    {
-        if(dithering_enabled)
-        {
-            writeByte(0xA006+i,matrix[i]);
-        }
-        else
-        {
-            writeByte(0xA006+i,matrix[i%3]);
-        }
-    }
+    UpdateMatrixRegisters(dithering);
 
     writeByte(0xA000,trigger);
 
