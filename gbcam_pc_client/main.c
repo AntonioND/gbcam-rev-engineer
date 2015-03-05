@@ -568,7 +568,6 @@ void UpdateMatrixRegisters(int dithering)
     }
 }
 
-
 void TakePictureAndTransfer(u8 trigger, u8 unk1, u16 exposure_time, u8 unk2, u8 unk3,
                             int dithering, int thumbnail)
 {

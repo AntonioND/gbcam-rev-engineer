@@ -216,7 +216,8 @@ to 4.0V (by modifying Vref and other configuration values). The previous limits
 have been determined by extrapolating.
 
 According to the sensor datasheet the output voltage range is 2.0V peak to peak
-(102 in digital), so that's the range of values that the controller has to
+(102 in digital). The actual range seems to be up to 3.15V depending on the
+register configurations. That's the range of values that the controller has to
 convert into 4 Game Boy grey shades.
 
 
