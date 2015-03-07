@@ -43,7 +43,7 @@ int debugpicture = 0;
 #define GBCAM_W (128)
 #define GBCAM_H (112)
 
-#define SCREEN_W (GBCAM_W*3 * 2)
+#define SCREEN_W (GBCAM_W*3 + 256)
 #define SCREEN_H (GBCAM_H*3)
 
 #define BIT(n) (1<<(n))
