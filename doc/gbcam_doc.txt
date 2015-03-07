@@ -213,7 +213,8 @@ around 0.8V and a value of FFh is around 4.1V. Note that the sensor has a 5.0V
 supply. That means that the value range is aproximately 3.3V, but it can't be
 reached by the sensor output. The sensor can only output from aproximately 0.9V
 to 4.0V (by modifying Vref and other configuration values). The previous limits
-have been determined by extrapolating.
+have been determined by extrapolating, since the values are completely linear
+(if the offset at 00h is ignored).
 
 According to the sensor datasheet the output voltage range is 2.0V peak to peak
 (102 in digital). The actual range seems to be up to 3.15V depending on the
@@ -339,6 +340,7 @@ M64282FP image processing
 =========================
 
 
+Z = '11' is the same as Z = '00'
 
 01234567890123456789012345678901234567890123456789012345678901234567890123456789
 
