@@ -235,22 +235,12 @@ static int HandleEvents(void)
                     exptime = 0x0040;
                     break;
 
-                case SDLK_t: trig_value ++; break;
-                case SDLK_g: trig_value --; break;
-
-                case SDLK_q: reg1 ++; break;
-                case SDLK_a: reg1 --; break;
-
-                case SDLK_w: reg4 ++; break;
-                case SDLK_s: reg4 --; break;
-
-                case SDLK_e: reg5 ++; break;
-                case SDLK_d: reg5 --; break;
-
                 case SDLK_z: dither_on = !dither_on; break;
 
                 case SDLK_UP: exptime +=0x10; break;
                 case SDLK_DOWN: exptime -=0x10; break;
+                case SDLK_RIGHT: exptime +=0x100; break;
+                case SDLK_LEFT: exptime -=0x100; break;
 
                 case SDLK_RETURN: takepicture = 1; break;
 
@@ -315,6 +305,9 @@ void ConvertTilesToBitmap(void)
 
     const int gb_pal_colors[4] = { 255, 168, 80, 0 };
 
+    unsigned long long int histogram[4];
+    memset(histogram,0,sizeof(histogram));
+
     int y, x;
     for(y = 0; y < 14*8; y++) for(x = 0; x < 16*8; x ++)
     {
@@ -328,10 +321,27 @@ void ConvertTilesToBitmap(void)
 
         int color = ( (data >> x_) & 1 ) |  ( ( (data2 >> x_)  << 1) & 2);
 
+        histogram[color] ++;
+
         int bufindex = (y*GBCAM_W+x)*3;
         GBCAM_BUFFER[bufindex+0] = gb_pal_colors[color];
         GBCAM_BUFFER[bufindex+1] = gb_pal_colors[color];
         GBCAM_BUFFER[bufindex+2] = gb_pal_colors[color];
+    }
+
+    int c;
+    for(c = 0; c < 256; c++)
+    {
+        int start_coord = (SCREEN_H/2) - (histogram[c/64]/64);
+        if(start_coord < 0) start_coord = 0;
+
+        int j;
+        for(j = start_coord; j < (SCREEN_H/2); j++)
+        {
+            HISTOGRAM_BUFFER[(j*256+c)*3+0] = 0xFF;
+            HISTOGRAM_BUFFER[(j*256+c)*3+1] = 0xFF;
+            HISTOGRAM_BUFFER[(j*256+c)*3+2] = 0xFF;
+        }
     }
 }
 
