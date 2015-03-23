@@ -107,22 +107,30 @@ static void GB_CameraTakePicture(void)
     for(i = 0; i < GBCAM_SENSOR_W; i++) for(j = 0; j < GBCAM_SENSOR_H; j++)
     {
         int value = gb_camera_webcam_output[i][j];
-        value = 128 + 0.75f*(float)(value-128);
-        gb_cam_retina_output_buf[i][j] = clamp(0,value,255);
+        value = 128 + (((value-128) * 5)/8); // "adapt" to 3.1/5.0 V
+        gb_cam_retina_output_buf[i][j] = gb_clamp_int(0,value,255);
     }
 
-    // Apply exposure time (with a reference of 0x0100)
+    // Apply exposure time
     for(i = 0; i < GBCAM_SENSOR_W; i++) for(j = 0; j < GBCAM_SENSOR_H; j++)
     {
         int result = gb_cam_retina_output_buf[i][j];
         result = ( (result * EXPOSURE_bits ) / 0x0100 );
-        gb_cam_retina_output_buf[i][j] = clamp(0,result,255);
+        gb_cam_retina_output_buf[i][j] = gb_clamp_int(0,result,255);
     }
 
     if(I_bit) // Invert image
     {
         for(i = 0; i < GBCAM_SENSOR_W; i++) for(j = 0; j < GBCAM_SENSOR_H; j++)
-            gb_cam_retina_output_buf[i][j] ^= 255;
+        {
+            gb_cam_retina_output_buf[i][j] = 255-gb_cam_retina_output_buf[i][j];
+        }
+    }
+
+    // Make signed
+    for(i = 0; i < GBCAM_SENSOR_W; i++) for(j = 0; j < GBCAM_SENSOR_H; j++)
+    {
+        gb_cam_retina_output_buf[i][j] = gb_cam_retina_output_buf[i][j]-128;
     }
 
     int temp_buf[GBCAM_SENSOR_W][GBCAM_SENSOR_H];
@@ -138,7 +146,7 @@ static void GB_CameraTakePicture(void)
             }
             for(i = 0; i < GBCAM_SENSOR_W; i++) for(j = 0; j < GBCAM_SENSOR_H; j++)
             {
-                int ms = temp_buf[i][min(j+1,GBCAM_SENSOR_H-1)];
+                int ms = temp_buf[i][gb_min_int(j+1,GBCAM_SENSOR_H-1)];
                 int px = temp_buf[i][j];
 
                 int value = 0;
@@ -146,7 +154,7 @@ static void GB_CameraTakePicture(void)
                 if(P_bits&BIT(1)) value += ms;
                 if(M_bits&BIT(0)) value -= px;
                 if(M_bits&BIT(1)) value -= ms;
-                gb_cam_retina_output_buf[i][j] = clamp(0,value,255);
+                gb_cam_retina_output_buf[i][j] = gb_clamp_int(-128,value,127);
             }
             break;
         }
@@ -154,15 +162,15 @@ static void GB_CameraTakePicture(void)
         {
             for(i = 0; i < GBCAM_SENSOR_W; i++) for(j = 0; j < GBCAM_SENSOR_H; j++)
             {
-                int mw = gb_cam_retina_output_buf[max(0,i-1)][j];
-                int me = gb_cam_retina_output_buf[min(i+1,GBCAM_SENSOR_W-1)][j];
+                int mw = gb_cam_retina_output_buf[gb_max_int(0,i-1)][j];
+                int me = gb_cam_retina_output_buf[gb_min_int(i+1,GBCAM_SENSOR_W-1)][j];
                 int px = gb_cam_retina_output_buf[i][j];
 
-                temp_buf[i][j] = clamp(0,px+((2*px-mw-me)*EDGE_alpha),255);
+                temp_buf[i][j] = gb_clamp_int(0,px+((2*px-mw-me)*EDGE_alpha),255);
             }
             for(i = 0; i < GBCAM_SENSOR_W; i++) for(j = 0; j < GBCAM_SENSOR_H; j++)
             {
-                int ms = temp_buf[i][min(j+1,GBCAM_SENSOR_H-1)];
+                int ms = temp_buf[i][gb_min_int(j+1,GBCAM_SENSOR_H-1)];
                 int px = temp_buf[i][j];
 
                 int value = 0;
@@ -170,7 +178,7 @@ static void GB_CameraTakePicture(void)
                 if(P_bits&BIT(1)) value += ms;
                 if(M_bits&BIT(0)) value -= px;
                 if(M_bits&BIT(1)) value -= ms;
-                gb_cam_retina_output_buf[i][j] = clamp(0,value,255);
+                gb_cam_retina_output_buf[i][j] = gb_clamp_int(-128,value,127);
             }
             break;
         }
@@ -178,13 +186,13 @@ static void GB_CameraTakePicture(void)
         {
             for(i = 0; i < GBCAM_SENSOR_W; i++) for(j = 0; j < GBCAM_SENSOR_H; j++)
             {
-                int ms = gb_cam_retina_output_buf[i][min(j+1,GBCAM_SENSOR_H-1)];
-                int mn = gb_cam_retina_output_buf[i][max(0,j-1)];
-                int mw = gb_cam_retina_output_buf[max(0,i-1)][j];
-                int me = gb_cam_retina_output_buf[min(i+1,GBCAM_SENSOR_W-1)][j];
+                int ms = gb_cam_retina_output_buf[i][gb_min_int(j+1,GBCAM_SENSOR_H-1)];
+                int mn = gb_cam_retina_output_buf[i][gb_max_int(0,j-1)];
+                int mw = gb_cam_retina_output_buf[gb_max_int(0,i-1)][j];
+                int me = gb_cam_retina_output_buf[gb_min_int(i+1,GBCAM_SENSOR_W-1)][j];
                 int px  = gb_cam_retina_output_buf[i][j];
 
-                temp_buf[i][j] = clamp(0,px+((4*px-mw-me-mn-ms)*EDGE_alpha),255);
+                temp_buf[i][j] = gb_clamp_int(-128,px+((4*px-mw-me-mn-ms)*EDGE_alpha),127);
             }
             for(i = 0; i < GBCAM_SENSOR_W; i++) for(j = 0; j < GBCAM_SENSOR_H; j++)
             {
@@ -194,12 +202,11 @@ static void GB_CameraTakePicture(void)
         }
         case 0x1:
         {
-            // In my GB Camera cartridge this is always the same color.
-            // The datasheet of the sensor doesn't have this configuration
-            // documented. Maybe this is a bug?
+            // In my GB Camera cartridge this is always the same color. The datasheet of the
+            // sensor doesn't have this configuration documented. Maybe this is a bug?
             for(i = 0; i < GBCAM_SENSOR_W; i++) for(j = 0; j < GBCAM_SENSOR_H; j++)
             {
-                gb_cam_retina_output_buf[i][j] = 0x80;
+                gb_cam_retina_output_buf[i][j] = 0;
             }
             break;
         }
@@ -213,6 +220,12 @@ static void GB_CameraTakePicture(void)
                    CAM_REG[3],CAM_REG[4],CAM_REG[5]);
             break;
         }
+    }
+	
+	// Make unsigned
+    for(i = 0; i < GBCAM_SENSOR_W; i++) for(j = 0; j < GBCAM_SENSOR_H; j++)
+    {
+        gb_cam_retina_output_buf[i][j] = gb_cam_retina_output_buf[i][j]+128;
     }
     
     //------------------------------------------------
