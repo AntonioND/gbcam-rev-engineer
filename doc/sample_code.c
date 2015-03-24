@@ -103,20 +103,13 @@ static void GB_CameraTakePicture(void)
     // Sensor handling
     // ---------------
 
-    //Copy webcam buffer to sensor buffer applying color correction
+    //Copy webcam buffer to sensor buffer applying color correction and exposure time
     for(i = 0; i < GBCAM_SENSOR_W; i++) for(j = 0; j < GBCAM_SENSOR_H; j++)
     {
         int value = gb_camera_webcam_output[i][j];
-        value = 128 + (((value-128) * 5)/8); // "adapt" to 3.1/5.0 V
+        value = ( (value * EXPOSURE_bits ) / 0x0300 ); // 0x0300 could be other values
+        value = 128 + (((value-128) * 1)/8); // "adapt" to "3.1"/5.0 V
         gb_cam_retina_output_buf[i][j] = gb_clamp_int(0,value,255);
-    }
-
-    // Apply exposure time
-    for(i = 0; i < GBCAM_SENSOR_W; i++) for(j = 0; j < GBCAM_SENSOR_H; j++)
-    {
-        int result = gb_cam_retina_output_buf[i][j];
-        result = ( (result * EXPOSURE_bits ) / 0x0100 );
-        gb_cam_retina_output_buf[i][j] = gb_clamp_int(0,result,255);
     }
 
     if(I_bit) // Invert image
